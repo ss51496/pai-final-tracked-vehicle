@@ -7,11 +7,14 @@ X=${1:-0}; Y=${2:-0}; Z=${3:-0.35}; YAW=${4:-0}
 QW=$(python3 -c "import math; print(math.cos($YAW/2))")
 QZ=$(python3 -c "import math; print(math.sin($YAW/2))")
 
+# PAI_ISOLATED=1 のときは試験用の隔離環境（scripts/test_sim.sh で起動したもの）を対象にする
+ENVSET=""
+[ -n "$PAI_ISOLATED" ] && ENVSET="export ROS_DOMAIN_ID=77 IGN_PARTITION=pai_test; "
 run() {
   if [ -f /.dockerenv ]; then
-    bash -c "source /opt/ros/humble/setup.bash && $1"
+    bash -c "${ENVSET}source /opt/ros/humble/setup.bash && $1"
   else
-    docker exec -u ubuntu pai_ros2 bash -lc "source /opt/ros/humble/setup.bash && $1"
+    docker exec -u ubuntu pai_ros2 bash -lc "${ENVSET}source /opt/ros/humble/setup.bash && $1"
   fi
 }
 

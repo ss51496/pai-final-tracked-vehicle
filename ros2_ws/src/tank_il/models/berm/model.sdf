@@ -10,11 +10,11 @@
         <polyline>
           <point>-20.0000 0.0000</point>
           <point>6.0000 0.0000</point>
-          <point>6.3000 0.0638</point>
-          <point>8.3078 1.0000</point>
-          <point>10.3078 1.0000</point>
-          <point>12.3155 0.0638</point>
-          <point>12.6155 0.0000</point>
+          <point>6.3000 0.0917</point>
+          <point>7.5972 1.0000</point>
+          <point>7.8972 1.0000</point>
+          <point>9.1943 0.0917</point>
+          <point>9.4943 0.0000</point>
           <point>40.0000 0.0000</point>
           <point>40.0000 -1.0000</point>
           <point>-20.0000 -1.0000</point>
@@ -28,11 +28,11 @@
         <polyline>
           <point>-20.0000 0.0000</point>
           <point>6.0000 0.0000</point>
-          <point>6.3000 0.0638</point>
-          <point>8.3078 1.0000</point>
-          <point>10.3078 1.0000</point>
-          <point>12.3155 0.0638</point>
-          <point>12.6155 0.0000</point>
+          <point>6.3000 0.0917</point>
+          <point>7.5972 1.0000</point>
+          <point>7.8972 1.0000</point>
+          <point>9.1943 0.0917</point>
+          <point>9.4943 0.0000</point>
           <point>40.0000 0.0000</point>
           <point>40.0000 -1.0000</point>
           <point>-20.0000 -1.0000</point>
