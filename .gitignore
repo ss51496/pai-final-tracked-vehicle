@@ -1,0 +1,9 @@
+build/
+install/
+log/
+dataset/
+checkpoints/
+logs/
+pai_training/
+__pycache__/
+*.pyc
