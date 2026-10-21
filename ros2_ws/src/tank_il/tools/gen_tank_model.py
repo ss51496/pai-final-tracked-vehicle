@@ -153,6 +153,12 @@ def main():
         <pose>{barrel_cx:.3f} 0 0 0 {math.pi / 2:.5f} 0</pose>
         <geometry><cylinder><radius>{BARREL_R}</radius><length>{BARREL_LEN}</length></cylinder></geometry>
       </collision>
+      <!-- 砲身が壁などに接触したかを検出する（評価の指標に使う） -->
+      <sensor name="barrel_contact" type="contact">
+        <always_on>1</always_on>
+        <update_rate>50</update_rate>
+        <contact><collision>barrel_collision</collision></contact>
+      </sensor>
       <visual name="barrel_visual">
         <pose>{barrel_cx:.3f} 0 0 0 {math.pi / 2:.5f} 0</pose>
         <geometry><cylinder><radius>{BARREL_R}</radius><length>{BARREL_LEN}</length></cylinder></geometry>

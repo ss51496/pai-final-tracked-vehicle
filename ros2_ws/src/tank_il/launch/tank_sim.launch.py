@@ -32,7 +32,7 @@ def build(context):
     if headless:
         gz_cmd.insert(2, '-s')
     elif context.launch_configurations['video'].lower() == 'true':
-        gz_cmd += ['--gui-config', os.path.join(pkg, 'config', 'video_gui.config')]
+        gz_cmd += ['--gui-config', os.path.join(pkg, 'config', context.launch_configurations['gui_config'])]
     gazebo = ExecuteProcess(
         cmd=gz_cmd, output='screen',
         additional_env={'IGN_GAZEBO_RESOURCE_PATH': resource_path})
@@ -75,6 +75,7 @@ def generate_launch_description():
         DeclareLaunchArgument('headless', default_value='false'),
         DeclareLaunchArgument('side_view', default_value='true'),
         DeclareLaunchArgument('video', default_value='false'),
+        DeclareLaunchArgument('gui_config', default_value='video_gui.config'),
         DeclareLaunchArgument('camera_xyz', default_value='7.0 -17.0 2.0'),
         OpaqueFunction(function=build),
     ])

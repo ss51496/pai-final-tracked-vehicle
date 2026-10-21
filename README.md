@@ -149,6 +149,23 @@ ros2 run tank_il evaluate_berm --mode policy --trials 10                 # 方�
 動き始めの 1 秒前〜動きが止まった 1.5 秒後に自動で切り出す。録画のシミュレーションは
 `ros2 launch tank_il tank_sim.launch.py world:=berm video:=true`（撮影用の GUI 設定 `config/video_gui.config`）。
 
+## 壕（段階3）
+
+壕（深さ 0.6 m、壁 40°、上端の幅 2.4 m）の world は `worlds/ditch.sdf`。
+砲塔が前向きだと、砲身が向こう側の壁に当たって動けなくなる（砲身は車体の前端から約 0.5 m 突き出る）。
+砲塔を 90° 回すと、砲身は壕に沿って横を向くので、壁に当たらずに通過できる。
+壁との接触は、砲身の接触センサーで検出する。
+
+```bash
+ros2 launch tank_il tank_sim.launch.py world:=ditch
+# ルールベースの手順で試す（砲塔 90° → 0.25 で進入 → x=7.0 m から全開）
+ros2 run tank_il evaluate_ditch --mode scripted --turret-deg 90 --entry-throttle 0.25 --switch-x 7.0 --trials 3
+./scripts/record_ditch_clips.sh    # 比較映像（前向きでつかえる／90° 回して通過）
+```
+
+壕の寸法は `tools/gen_ditch.py` のパラメータ（環境変数 `DITCH_TOP_W` など）で変える。
+`scripts/scan_ditch.sh` で寸法を変えながら、砲身の接触と通過を調べられる。
+
 ## 結果（突堤、各 10 試行）
 
 | 方式 | 通過 | 跳ねずに通過 | 所要時間（平均） |

@@ -378,6 +378,12 @@
         <pose>0.850 0 0 0 1.57080 0</pose>
         <geometry><cylinder><radius>0.04</radius><length>1.3</length></cylinder></geometry>
       </collision>
+      <!-- 砲身が壁などに接触したかを検出する（評価の指標に使う） -->
+      <sensor name="barrel_contact" type="contact">
+        <always_on>1</always_on>
+        <update_rate>50</update_rate>
+        <contact><collision>barrel_collision</collision></contact>
+      </sensor>
       <visual name="barrel_visual">
         <pose>0.850 0 0 0 1.57080 0</pose>
         <geometry><cylinder><radius>0.04</radius><length>1.3</length></cylinder></geometry>

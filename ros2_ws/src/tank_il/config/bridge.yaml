@@ -37,3 +37,10 @@
   ros_type: rosgraph_msgs/msg/Clock
   gz_type: ignition.msgs.Clock
   direction: gz_to_ros
+
+# 砲身の接触（ContactSensor）。モデルの <topic> 指定は無視され、Gazebo のトピック名はこの固定の名前になる
+# （world 名を course に統一しているので全 world で共通）。接触が起きたときだけ配信される
+- topic: /world/course/model/tank/link/turret/sensor/barrel_contact/contact
+  ros_type: ros_gz_interfaces/msg/Contacts
+  gz_type: ignition.msgs.Contacts
+  direction: gz_to_ros

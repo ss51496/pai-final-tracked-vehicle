@@ -39,6 +39,7 @@ setup(
             'state_publisher = tank_il.state_publisher:main',
             'teleop_tank = tank_il.teleop_tank:main',
             'evaluate_berm = tank_il.evaluate_berm:main',
+            'evaluate_ditch = tank_il.evaluate_ditch:main',
         ],
     },
 )
