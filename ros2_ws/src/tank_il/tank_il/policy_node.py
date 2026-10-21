@@ -14,14 +14,14 @@ import math
 import numpy as np
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Float32MultiArray
+from std_msgs.msg import Empty, Float32MultiArray
 
 PUBLISH_HZ = 10.0     # 学習データの fps と同じ
 STATE_TIMEOUT = 1.0   # この秒数 /tank/state が来なければ配信を止める（tank_driver が停止する）
 
 
 class PolicyNode(Node):
-    def __init__(self, model_path, device):
+    def __init__(self, model_path, device, n_action_steps=None):
         super().__init__('policy_node')
         # torch と lerobot は pixi 環境にしかないので、ここで読み込む
         import torch
@@ -31,11 +31,16 @@ class PolicyNode(Node):
         self.policy = ACTPolicy.from_pretrained(model_path)
         self.policy.to(self.device)
         self.policy.eval()
+        if n_action_steps:
+            # 1 回の推論で得た行動チャンクのうち、先頭から何ステップ分を続けて実行するか
+            self.policy.config.n_action_steps = n_action_steps
         self.policy.reset()
 
         self.state = None
         self.last_rx = None
         self.create_subscription(Float32MultiArray, '/tank/state', self.on_state, 10)
+        # 評価で車両をリセットするたびに、行動チャンクのキューを空にする
+        self.create_subscription(Empty, '/tank/policy_reset', lambda _: self.policy.reset(), 10)
         self.pub = self.create_publisher(Float32MultiArray, '/tank/command', 10)
         self.create_timer(1.0 / PUBLISH_HZ, self.step)
         self.get_logger().info(f'方策を読み込みました: {model_path}')
@@ -67,9 +72,11 @@ def main():
     ap = argparse.ArgumentParser(description='ACT 方策の推論ノード')
     ap.add_argument('--model-path', required=True, help='学習済みモデルのディレクトリ')
     ap.add_argument('--device', default='cpu')
+    ap.add_argument('--n-action-steps', type=int, default=8,
+                    help='1 回の推論で得た行動チャンクを何ステップ続けて実行するか（0 なら学習時の設定のまま）。突堤では 8 が最良')
     args, ros_args = ap.parse_known_args()
     rclpy.init(args=ros_args)
-    node = PolicyNode(args.model_path, args.device)
+    node = PolicyNode(args.model_path, args.device, args.n_action_steps)
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:

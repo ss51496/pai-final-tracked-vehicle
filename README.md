@@ -108,6 +108,46 @@ WANDB_MODE=offline pixi run train
 ```
 
 設定は `learning/conversion_config.yaml`、`learning/train_config.yaml`、`learning/tank_features.py`。
+変換では、操縦を始める前と終えた後の停止区間を切り詰める（`trim_idle`）。切り詰めないと、開始前の観測が毎回同じで動き出す時刻だけが違うため、方策が「止まったまま」と出力して動き出せない。
+
+学習の loss の推移と、学習データ上の予測と正解の比較（`debug-policy` 相当）は、次の図にできる。
+
+```bash
+cd /workspace/pai_training
+pixi run python /workspace/learning/plot_loss.py /workspace/logs/train_berm.log /workspace/docs/loss_berm.png
+pixi run python /workspace/learning/debug_policy_tank.py --episodes 0 5 9 --out /workspace/docs/debug_policy_berm.png
+```
+
+## 推論と評価
+
+推論中は teleop を必ず止める（同じ `/tank/command` に配信して競合するため）。
+
+```bash
+ros2 launch tank_il tank_sim.launch.py world:=berm        # シミュレーション
+cd /workspace/pai_training                                # 方策（pixi の環境）
+pixi run python /workspace/ros2_ws/src/tank_il/tank_il/policy_node.py     --model-path /workspace/checkpoints/train/tank_berm_act --n-action-steps 8
+```
+
+評価は 10 試行（車両のリセット → 走行 → x ≥ 13 m まで）を記録する。
+「跳ねずに通過」は、通過かつ最高 z < 1.70 m かつ空中 < 0.6 s（IMU の加速度の大きさが 3 m/s² 未満の時間）。
+
+```bash
+ros2 run tank_il evaluate_berm --mode const --throttle 1.0 --trials 10   # ルールベース（一定スロットル）
+ros2 run tank_il evaluate_berm --mode policy --trials 10                 # 方策（policy_node を起動しておく）
+```
+
+## 結果（突堤、各 10 試行）
+
+| 方式 | 通過 | 跳ねずに通過 | 所要時間（平均） |
+|---|---|---|---|
+| ルールベース：全開 | 10/10 | 0/10 | 3.8 s |
+| ルールベース：0.5 一定 | 10/10 | 10/10 | 7.2 s |
+| ルールベース：0.25 一定 | 10/10 | 10/10 | 13.6 s |
+| ACT（`n_action_steps=1`） | 10/10 | 1/10 | 3.4 s |
+| **ACT（`n_action_steps=8`）** | 10/10 | **10/10** | **3.6 s** |
+| ACT（`n_action_steps=16`） | 10/10 | 6/10 | 3.8 s |
+
+全開と同じ速さで、跳ねずに通過できた。詳細と考察は `WORKLOG.md`、図は `docs/`、全記録は `results/`。
 
 ## 参考
 

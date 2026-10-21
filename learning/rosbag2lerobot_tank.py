@@ -12,6 +12,9 @@
   3. 両方が存在する区間を fps の等間隔で区切り、直前の値を保持して再サンプルする
   4. 1 フレームずつ LeRobotDataset に追加し、エピソードごとに保存する
 
+操縦を始める前と終えた後の停止区間は切り詰める（trim_idle）。始める前の観測は毎回同じ（x=0、速度 0）なのに
+動き出す時刻は毎回違うため、そのまま学習すると「止まったまま」と出力して動き出せなくなる。
+
 講義のスクリプトとの違い: 全エピソードを最長に合わせて最後のフレームで延ばさない。
 延ばすと「通過後に止まり続ける区間」が長く学習データに入ってしまうため。
 ACT は行動チャンクが終端を越える部分を action_is_pad として扱えるので、延ばさなくてよい。
@@ -59,6 +62,16 @@ def sample_and_hold(times, values, target_times):
     return values[np.clip(idx, 0, len(times) - 1)]
 
 
+def trim_idle(action, fps, tail_sec):
+    """行動が最初に変わった位置から、最後に変わった位置の tail_sec 秒後までを残す範囲 (start, end) を返す"""
+    moving = np.abs(action - action[0]).max(axis=1) > 1e-3
+    if not moving.any():
+        return 0, len(action) - 1
+    first = int(np.argmax(moving))
+    last = len(moving) - 1 - int(np.argmax(moving[::-1]))
+    return first, min(len(action) - 1, last + int(tail_sec * fps))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", default="/workspace/learning/conversion_config.yaml")
@@ -95,6 +108,11 @@ def main():
         state = sample_and_hold(s_t, s_v, target)
         action = sample_and_hold(a_t, a_v, target)
 
+        n_raw = n
+        if cfg.get("trim_idle", False):
+            lo, hi = trim_idle(action, fps, float(cfg.get("trim_tail_sec", 1.0)))
+            state, action = state[lo:hi + 1], action[lo:hi + 1]
+            n = len(action)
         for k in range(n):
             dataset.add_frame({
                 "observation.state": torch.from_numpy(state[k]),
@@ -104,7 +122,7 @@ def main():
             })
         dataset.save_episode()
         # 変換の健全性を確認するための要約（ピッチとスロットルの対応が見えるはず）
-        print(f"[ep{i}] {ep.name}: {n} フレーム ({n / fps:.1f}s)  "
+        print(f"[ep{i}] {ep.name}: {n} フレーム ({n / fps:.1f}s、切り詰め前 {n_raw})  "
               f"最大ピッチ={np.degrees(state[:, 2].max()):.1f}deg  最大z={state[:, 1].max():.2f}m  "
               f"スロットル最大={action[:, 0].max():.2f}  最小={action[:, 0].min():.2f}")
 

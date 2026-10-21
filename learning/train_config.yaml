@@ -5,7 +5,7 @@ output_directory: "/workspace/checkpoints/train/tank_berm_act"
 config_path: "/workspace/learning/tank_features.py"
 
 device: "cpu"
-training_steps: 3000
+training_steps: 5000
 log_freq: 50
 num_workers: 2
 batch_size: 8

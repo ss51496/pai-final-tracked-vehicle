@@ -5,3 +5,5 @@ features_file: "/workspace/learning/tank_features.py"
 fps: 10                                             # まず 10 から始める
 state_topic: "/tank/state"                          # Float32MultiArray（5 次元）
 action_topic: "/tank/command"                       # Float32MultiArray（3 次元）
+trim_idle: true                                     # 操縦の前後の停止区間を切り詰める
+trim_tail_sec: 1.0                                  # 最後の操作のあとに残す秒数

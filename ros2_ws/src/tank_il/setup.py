@@ -38,6 +38,7 @@ setup(
             'tank_driver = tank_il.tank_driver:main',
             'state_publisher = tank_il.state_publisher:main',
             'teleop_tank = tank_il.teleop_tank:main',
+            'evaluate_berm = tank_il.evaluate_berm:main',
         ],
     },
 )
