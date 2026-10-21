@@ -85,3 +85,14 @@
 ### 遭遇した問題と解決（共有コンテナでの干渉）
 - ユーザーが noVNC で動かしているシミュレーションと、私が試験用に起動した GUI なしのシミュレーションが**同じコンテナで重なり**、ROS のトピックと Gazebo のサービスを共有していた。試験の指令でユーザーの車両が動き、`/tank/state` に2台分の値が混ざった（x が 5〜11 と 65〜72 を交互に出力して発覚）。→ 試験用は `ROS_DOMAIN_ID=77`・`IGN_PARTITION=pai_test` で隔離する（`PAI_ISOLATED=1`、`scripts/test_sim.sh`）。停止は setsid でプロセスグループにして PID を記録し、グループごと止める（環境変数による判別は別ユーザーのプロセスで読めず失敗した）。
 - 隔離前の試験データ（最大 |a| が 568〜1202 など）は2台の混在で無効。上の表は隔離後の再測定値。
+
+### 2026-10-21 pai_training の読解と変換・学習の準備
+- `/workspace/pai_training`（別 clone、git 管理外）の `rosbag2lerobot.py`、`crane_features.py`、`train.py`、`infer.py`、`debug_policy.py` を読んだ。
+  - 変換：`.db3` から各トピックの時系列を読み、両トピックが存在する区間を fps の等間隔に区切って sample-and-hold で再サンプルする。特徴量は features ファイルで決まる。
+  - **全エピソードを最長に合わせて最後のフレームで延ばしている**。突堤では通過後に止まり続ける区間が学習データに入ってしまうので、自作版では延ばさない（ACT は行動チャンクの終端を `action_is_pad` で扱える）。
+  - 学習：`train.py` は設定を `configs/train_config.yaml` から固定で読む → `learning/setup_training.sh` で自作設定へのシンボリックリンクに置き換える。正規化はデータの統計から自動（推論時は元のスケールで出る）。
+  - 推論：`select_action` を毎ステップ呼ぶ。`n_action_steps=1` なのでチャンクの先頭 1 個だけを実行する。
+- 自作：`learning/`（`tank_features.py`、`conversion_config.yaml`、`rosbag2lerobot_tank.py`、`train_config.yaml`、`setup_training.sh`）、`policy_node.py`（10Hz、停止時に停止指令を送る）、`README.md`。
+- 設計判断：fps は 10。`delta_timestamps` は 0.0〜1.5 秒の 16 個（チャンク 1.6 秒）。講義の設定は先頭が -0.1（過去の行動）だったが、本タスクは 0.0 から始めた。
+- 環境：コンテナに GPU はなく CPU で学習する（20 コア、メモリ 31GB）。pixi は公式のインストーラで入れた（0.82.1）。依存パッケージの取得に時間がかかる（キャッシュが 5GB 超）。
+- パイプライン試験：スクリプトによる自動操縦で 3 エピソードを `ros2 bag record` し、`.db3` ができることを確認（変換と学習の試験はこれから）。同じ手順でも着地の最大加速度は 26〜662 m/s² とばらつき、空中の時間は 0.22〜0.32 s で安定していた → **評価指標は空中の時間を使う**。

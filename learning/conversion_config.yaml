@@ -1,0 +1,7 @@
+# rosbag2 → LeRobotDataset の変換設定（rosbag2lerobot_tank.py が読む）
+bag_dir: "/workspace/dataset/rosbags/berm"          # ep0, ep1, ... のフォルダが入っている場所
+output_dir: "/workspace/dataset/lerobot_dataset/tank_berm"
+features_file: "/workspace/learning/tank_features.py"
+fps: 10                                             # まず 10 から始める
+state_topic: "/tank/state"                          # Float32MultiArray（5 次元）
+action_topic: "/tank/command"                       # Float32MultiArray（3 次元）
