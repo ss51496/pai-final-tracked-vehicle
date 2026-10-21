@@ -4,7 +4,7 @@
 使い方:  python3 tools/gen_ditch.py <出力先ディレクトリ>   （model.sdf と model.config を書く）
 
 無限平面は掘れないので、地面そのものを「断面（x-z 平面）の多角形を y 方向に押し出した立体」として作る。
-この world では、無限平面を z=-1 に下げて、この立体の下面（z=-1）に合わせる。
+この world では、無限平面を z=-1.5 に下げて、この立体の下面（z=-1.5）に合わせる。
 壁は垂直にせず、車輪式でも登れる角度の斜面にする。
 
 砲身の長さ（車体の前端から約 0.5 m 突き出る）と壕の幅は、
@@ -16,10 +16,10 @@ import sys
 
 X_NEAR = 6.0          # 手前の縁の x 座標 [m]（車両の初期位置 x=0 から助走する）
 TOP_W = float(os.environ.get("DITCH_TOP_W", 2.4))     # 壕の上端の幅 [m]（環境変数で上書き可）。車輪の間隔（1.8 m）より広くしないと、車両が壕をまたいで砲身が壁に当たらない
-DEPTH = float(os.environ.get("DITCH_DEPTH", 0.6))     # 深さ [m]
+DEPTH = float(os.environ.get("DITCH_DEPTH", 1.0))     # 深さ [m]
 SLOPE_DEG = float(os.environ.get("DITCH_SLOPE", 40.0))  # 壁の角度 [deg]
 WIDTH = 12.0          # 壕の長さ（y 方向）[m]
-X_MIN, X_MAX, Z_BOTTOM = -20.0, 40.0, -1.0
+X_MIN, X_MAX, Z_BOTTOM = -20.0, 40.0, -1.5   # 立体の下面。深さ 1.0 m の壕でも底の下に厚みが残るようにする
 MU = 1.0
 
 

@@ -9,7 +9,9 @@
 1 回の試行: 車両をリセット → 走行 → x が GOAL_X に達する（または TIMEOUT 秒、または 6 秒以上動かない）まで。
 記録: 通過したか、砲身が壁などに接触したか（接触センサーのメッセージ数）、最低の z、所要時間（シミュレーション時刻）。
 
-「接触せずに通過」＝通過した  かつ  砲身の接触が 0 件
+「接触せずに通過」＝通過した  かつ  砲身の接触が 0 件（これが主な評価指標）
+参考として「飛ばずに通過」＝接触せずに通過  かつ  空中の時間が HOP_AIR_SEC 未満 も記録する
+（壕の出口を全開で登ると、出口の縁から飛び出す。空中＝IMU の加速度の大きさが小さい時間）
 """
 import argparse
 import csv
@@ -21,12 +23,15 @@ import rclpy
 from rclpy.node import Node
 from rclpy.parameter import Parameter
 from ros_gz_interfaces.msg import Contacts
+from sensor_msgs.msg import Imu
 from std_msgs.msg import Empty, Float32MultiArray
 
 GOAL_X = 12.0
 TIMEOUT = 40.0          # [s]（シミュレーション時刻）
 STUCK_SEC = 6.0         # この秒数 x が進まなければ「動けなくなった」とみなす
 RESET_SCRIPT = '/workspace/scripts/reset_tank.sh'
+HOP_AIR_SEC = 0.6      # [s] これ以上空中にいたら「飛び越えた」とみなす
+AIR_ACC = 3.0          # [m/s^2]
 CONTACT_TOPIC = '/world/course/model/tank/link/turret/sensor/barrel_contact/contact'
 
 
@@ -41,10 +46,17 @@ class Evaluator(Node):
         self.reset_pub = self.create_publisher(Empty, '/tank/policy_reset', 10)
         self.create_subscription(Float32MultiArray, '/tank/state', lambda m: setattr(self, 'state', list(m.data)), 10)
         self.create_subscription(Contacts, CONTACT_TOPIC, self.on_contact, 10)
+        self.air_samples = 0
+        self.create_subscription(Imu, '/imu', self.on_imu, 10)
 
     def on_contact(self, msg):
         if self.counting and msg.contacts:
             self.contacts += 1
+
+    def on_imu(self, msg):
+        a = msg.linear_acceleration
+        if self.counting and math.sqrt(a.x ** 2 + a.y ** 2 + a.z ** 2) < AIR_ACC:
+            self.air_samples += 1
 
     def sim_now(self):
         return self.get_clock().now().nanoseconds * 1e-9
@@ -78,6 +90,7 @@ class Evaluator(Node):
         if a.mode == 'scripted':
             self.spin_for(3.0, [0.0, 0.0, math.radians(a.turret_deg)])   # 動き出す前に砲塔を回す
         self.contacts = 0
+        self.air_samples = 0
         self.counting = True
         t0 = self.sim_now()
         min_z = self.state[1]
@@ -102,8 +115,10 @@ class Evaluator(Node):
         final_x = self.state[0]
         turret_deg = math.degrees(self.state[4])
         self.stop()
+        air = self.air_samples / 50.0
         ok = outcome == 'passed' and self.contacts == 0
-        return dict(outcome=outcome, contact_msgs=self.contacts, no_contact_pass=ok, min_z=round(min_z, 3),
+        no_hop = ok and air < HOP_AIR_SEC
+        return dict(outcome=outcome, contact_msgs=self.contacts, air_sec=round(air, 2), no_contact_pass=ok, no_hop_pass=no_hop, min_z=round(min_z, 3),
                     time_sec=round(t_end, 1), final_x=round(final_x, 2), turret_deg=round(turret_deg))
 
 
@@ -125,14 +140,15 @@ def main():
         r = node.run_trial()
         r['trial'] = i
         rows.append(r)
-        print(f"[{label}] trial {i}: {r['outcome']} 接触={r['contact_msgs']} 接触せずに通過={'○' if r['no_contact_pass'] else '×'} "
+        print(f"[{label}] trial {i}: {r['outcome']} 接触={r['contact_msgs']} 接触せずに通過={'○' if r['no_contact_pass'] else '×'} 空中={r['air_sec']}s 飛ばずに通過={'○' if r['no_hop_pass'] else '×'} "
               f"所要={r['time_sec']}s 最低z={r['min_z']} 最終x={r['final_x']} 砲塔={r['turret_deg']}deg", flush=True)
     n_pass = sum(r['outcome'] == 'passed' for r in rows)
     n_ok = sum(r['no_contact_pass'] for r in rows)
-    print(f"[{label}] {args.trials} 回中: 通過 {n_pass} 回、接触せずに通過 {n_ok} 回")
+    n_nohop = sum(r['no_hop_pass'] for r in rows)
+    print(f"[{label}] {args.trials} 回中: 通過 {n_pass} 回、接触せずに通過 {n_ok} 回、飛ばずに通過 {n_nohop} 回")
     if args.out:
         with open(args.out, 'w', newline='') as f:
-            w = csv.DictWriter(f, fieldnames=['trial', 'outcome', 'contact_msgs', 'no_contact_pass', 'min_z',
+            w = csv.DictWriter(f, fieldnames=['trial', 'outcome', 'contact_msgs', 'air_sec', 'no_contact_pass', 'no_hop_pass', 'min_z',
                                               'time_sec', 'final_x', 'turret_deg'])
             w.writeheader()
             w.writerows(rows)

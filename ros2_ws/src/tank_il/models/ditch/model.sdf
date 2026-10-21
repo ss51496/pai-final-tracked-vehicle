@@ -8,14 +8,14 @@
       <collision name="collision">
         <geometry>
         <polyline>
-          <point>-20.0000 -1.0000</point>
+          <point>-20.0000 -1.5000</point>
           <point>-20.0000 0.0000</point>
           <point>6.0000 0.0000</point>
-          <point>6.7151 -0.6000</point>
-          <point>7.6849 -0.6000</point>
+          <point>7.1900 -1.0000</point>
+          <point>7.2100 -1.0000</point>
           <point>8.4000 0.0000</point>
           <point>40.0000 0.0000</point>
-          <point>40.0000 -1.0000</point>
+          <point>40.0000 -1.5000</point>
           <height>12.0</height>
         </polyline>
         </geometry>
@@ -24,14 +24,14 @@
       <visual name="visual">
         <geometry>
         <polyline>
-          <point>-20.0000 -1.0000</point>
+          <point>-20.0000 -1.5000</point>
           <point>-20.0000 0.0000</point>
           <point>6.0000 0.0000</point>
-          <point>6.7151 -0.6000</point>
-          <point>7.6849 -0.6000</point>
+          <point>7.1900 -1.0000</point>
+          <point>7.2100 -1.0000</point>
           <point>8.4000 0.0000</point>
           <point>40.0000 0.0000</point>
-          <point>40.0000 -1.0000</point>
+          <point>40.0000 -1.5000</point>
           <height>12.0</height>
         </polyline>
         </geometry>

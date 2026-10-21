@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<!-- 対戦車壕の world（段階3）。壕の形は tools/gen_ditch.py のパラメータで変更する。無限平面は z=-1 に下げ、壕の立体の下面に合わせてある -->
+<!-- 対戦車壕の world（段階3）。壕の形は tools/gen_ditch.py のパラメータで変更する。無限平面は z=-1.5 に下げ、壕の立体の下面に合わせてある -->
 <sdf version="1.8">
   <world name="course">
     <physics name="1ms" type="dart">
@@ -31,7 +31,7 @@
 
     <model name="ground_plane">
       <static>true</static>
-      <pose>0 0 -1 0 0 0</pose>
+      <pose>0 0 -1.5 0 0 0</pose>
       <link name="link">
         <collision name="collision">
           <geometry><plane><normal>0 0 1</normal><size>400 400</size></plane></geometry>
