@@ -143,3 +143,17 @@
 
 ### 試験環境の注意
 - 試験用の評価は ROS ドメイン 77・Gazebo パーティション `pai_test` で隔離して実行（ユーザーの GUI 上のシミュレーションに干渉しない）。
+
+## 2026-10-22 動画の撮影とレポート（突堤編）
+
+### 動画（段階2）
+- Gazebo の GUI に録画サービスは無かった（`/gui/screenshot` のみ）→ ffmpeg の x11grab でコンテナの仮想ディスプレイを録画する。
+- 最初は noVNC の画面（:0）から Gazebo ウィンドウの領域を切り出したが、**ユーザーのターミナルが重なって写った**。→ 撮影専用の仮想ディスプレイ :99（Xvnc）に、3D ビューだけの撮影用 GUI（`config/video_gui.config`、launch の `video:=true`）を表示して録画する方式に変更。ユーザーの画面に干渉せず、重なりも起きない。
+- 失敗：`pgrep -f '[X]vnc :99'` が自分自身のシェルのコマンド行にマッチして「起動済み」と誤判定し、Xvnc が起動しなかった（Gazebo が Qt の初期化で abort）。→ ソケットファイル `/tmp/.X11-unix/X99` の有無で判定する。（`pkill`/`pgrep -f` の自己一致は 3 回目の同種のミス。コマンド行にパターンを含むシェルから使わない）
+- 冒頭の静止区間は、映像のフレーム間の変化量（ffmpeg の scene スコア）から動き始めを検出し、その 1 秒前から切り出す。
+- 場面：全開のまま通過（`ros2 topic pub` で一定指令）／熟練者のデモの再現（rosbag の `/tank/command` だけを `ros2 bag play`。シミュレーションが決定的なので同じ動きになる）／学習した方策（`policy_node --wait-reset` を先に起動し、録画の開始後に `/tank/policy_reset` で開始）。
+- 通常版と 4 倍スロー版を作り、字幕は ffmpeg の drawtext（Noto Sans CJK）で焼き込む。
+
+### レポート
+- `report/report_stage2_berm.html` を Chrome の headless（`--print-to-pdf`）で PDF にした（6 ページ）。図は WORKLOG の分析で使ったものをそのまま使う。
+- 構成：概要と目的／システム構成／学習の方法／結果（ルールベースとの比較）／失敗と考察／再現手順と参考。

@@ -4,6 +4,7 @@
   ros2 launch tank_il tank_sim.launch.py world:=berm    # 他の world
   ros2 launch tank_il tank_sim.launch.py headless:=true # GUI なし（動作確認用）
   ros2 launch tank_il tank_sim.launch.py side_view:=false  # カメラを動かさない
+  ros2 launch tank_il tank_sim.launch.py video:=true       # 動画撮影用（3D ビューのみ、1280x720）
 
 GUI のカメラは起動後に横から見る位置へ移動する（side_view:=true、既定）。
 """
@@ -30,6 +31,8 @@ def build(context):
     gz_cmd = ['ign', 'gazebo', '-r', os.path.join(pkg, 'worlds', world + '.sdf')]
     if headless:
         gz_cmd.insert(2, '-s')
+    elif context.launch_configurations['video'].lower() == 'true':
+        gz_cmd += ['--gui-config', os.path.join(pkg, 'config', 'video_gui.config')]
     gazebo = ExecuteProcess(
         cmd=gz_cmd, output='screen',
         additional_env={'IGN_GAZEBO_RESOURCE_PATH': resource_path})
@@ -49,7 +52,8 @@ def build(context):
                  parameters=[sim_time])
     actions = [gazebo, bridge, driver, state]
 
-    if not headless and context.launch_configurations['side_view'].lower() == 'true':
+    video = context.launch_configurations['video'].lower() == 'true'
+    if not headless and not video and context.launch_configurations['side_view'].lower() == 'true':
         # カメラの位置 (x y z) とピッチ・ヨー [rad]。ヨー +90° で +y 向き（コースを横から見る）
         x, y, z = (float(v) for v in context.launch_configurations['camera_xyz'].split())
         pitch, yaw = 0.05, math.pi / 2
@@ -70,6 +74,7 @@ def generate_launch_description():
         DeclareLaunchArgument('world', default_value='flat'),
         DeclareLaunchArgument('headless', default_value='false'),
         DeclareLaunchArgument('side_view', default_value='true'),
+        DeclareLaunchArgument('video', default_value='false'),
         DeclareLaunchArgument('camera_xyz', default_value='7.0 -17.0 2.0'),
         OpaqueFunction(function=build),
     ])

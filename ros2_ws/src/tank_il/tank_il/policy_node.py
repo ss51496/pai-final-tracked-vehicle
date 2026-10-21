@@ -21,7 +21,7 @@ STATE_TIMEOUT = 1.0   # この秒数 /tank/state が来なければ配信を止�
 
 
 class PolicyNode(Node):
-    def __init__(self, model_path, device, n_action_steps=None):
+    def __init__(self, model_path, device, n_action_steps=None, wait_reset=False):
         super().__init__('policy_node')
         # torch と lerobot は pixi 環境にしかないので、ここで読み込む
         import torch
@@ -40,17 +40,22 @@ class PolicyNode(Node):
         self.last_rx = None
         self.create_subscription(Float32MultiArray, '/tank/state', self.on_state, 10)
         # 評価で車両をリセットするたびに、行動チャンクのキューを空にする
-        self.create_subscription(Empty, '/tank/policy_reset', lambda _: self.policy.reset(), 10)
+        self.enabled = not wait_reset   # True なら /tank/policy_reset を受けるまで動かない（動画の撮影用）
+        self.create_subscription(Empty, '/tank/policy_reset', self.on_reset, 10)
         self.pub = self.create_publisher(Float32MultiArray, '/tank/command', 10)
         self.create_timer(1.0 / PUBLISH_HZ, self.step)
         self.get_logger().info(f'方策を読み込みました: {model_path}')
+
+    def on_reset(self, _):
+        self.policy.reset()
+        self.enabled = True
 
     def on_state(self, msg):
         self.state = np.asarray(msg.data, dtype=np.float32)
         self.last_rx = self.get_clock().now()
 
     def step(self):
-        if self.state is None:
+        if not self.enabled or self.state is None:
             return
         if (self.get_clock().now() - self.last_rx).nanoseconds * 1e-9 > STATE_TIMEOUT:
             return
@@ -72,11 +77,12 @@ def main():
     ap = argparse.ArgumentParser(description='ACT 方策の推論ノード')
     ap.add_argument('--model-path', required=True, help='学習済みモデルのディレクトリ')
     ap.add_argument('--device', default='cpu')
+    ap.add_argument('--wait-reset', action='store_true', help='/tank/policy_reset を受けるまで指令を出さない')
     ap.add_argument('--n-action-steps', type=int, default=8,
                     help='1 回の推論で得た行動チャンクを何ステップ続けて実行するか（0 なら学習時の設定のまま）。突堤では 8 が最良')
     args, ros_args = ap.parse_known_args()
     rclpy.init(args=ros_args)
-    node = PolicyNode(args.model_path, args.device, args.n_action_steps)
+    node = PolicyNode(args.model_path, args.device, args.n_action_steps, args.wait_reset)
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:

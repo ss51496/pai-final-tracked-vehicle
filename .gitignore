@@ -7,3 +7,5 @@ logs/
 pai_training/
 __pycache__/
 *.pyc
+videos/
+results_tmp/

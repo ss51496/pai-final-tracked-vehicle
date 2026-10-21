@@ -136,6 +136,19 @@ ros2 run tank_il evaluate_berm --mode const --throttle 1.0 --trials 10   # ル�
 ros2 run tank_il evaluate_berm --mode policy --trials 10                 # 方策（policy_node を起動しておく）
 ```
 
+## 動画の撮影
+
+3 つの場面（全開のまま通過／熟練者のデモの再現／方策の自律走行）を自動で録画する。
+撮影専用の仮想ディスプレイ（:99）に、3D ビューだけの Gazebo を表示して録画するので、画面に他のウィンドウが重なっても影響しない。
+実行すると、動いているシミュレーションは停止する。
+
+```bash
+./scripts/record_clips.sh      # videos/<場面>.mp4（字幕つき）と videos/<場面>_slow.mp4（4 倍スロー）ができる
+```
+
+動き始めの 1 秒前〜動きが止まった 1.5 秒後に自動で切り出す。録画のシミュレーションは
+`ros2 launch tank_il tank_sim.launch.py world:=berm video:=true`（撮影用の GUI 設定 `config/video_gui.config`）。
+
 ## 結果（突堤、各 10 試行）
 
 | 方式 | 通過 | 跳ねずに通過 | 所要時間（平均） |
