@@ -9,3 +9,4 @@ __pycache__/
 *.pyc
 videos/
 results_tmp/
+report/docx_build/
