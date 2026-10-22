@@ -225,3 +225,8 @@
 
 #### 技術メモ
 - バックグラウンドの長い処理は `setsid nohup ... < /dev/null &` で起動する（単に `&` や `nohup` だけだと、WSL の呼び出しの終了に巻き込まれて消えることがあった）。
+
+### 2026-10-22 Gazebo が立ち上がらない（ユーザーの環境）
+- 症状：noVNC で `ros2 launch tank_il tank_sim.launch.py world:=ditch` を起動すると、Gazebo のウィンドウは開くが中身が描画されない（背景の壁紙が透けて見える）。端末に `[ign-5] Service call timed out`（カメラ移動のサービス）。`ign topic -e -t /world/course/stats` が空で、サーバーが応答していない。
+- 原因：私が撮影用に動かしていたスクリプト（`record_ditch_clips.sh`）の終了時の `kill_sim.sh`（Gazebo の全プロセスを止める）が、ユーザーの起動のタイミングと重なり、ユーザーの `ign gazebo server` が SIGTERM で止まらず**応答しない状態で残った**。
+- 対策：`kill_sim.sh` に、SIGTERM のあと残ったものを SIGKILL で強制終了する保険を追加。コンテナ内（noVNC のターミナル）からも実行できるようにした。ユーザーの画面でシミュレーションを使っている間は、非隔離の撮影・停止処理を走らせない（試験は隔離環境、撮影は :99 の専用ディスプレイだが、後者は起動時に全停止する）。
