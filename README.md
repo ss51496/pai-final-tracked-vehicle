@@ -189,8 +189,9 @@ noVNC のターミナルを 4 つ使う（それぞれ最初に `source /opt/ros
    ros2 bag record --use-sim-time -o /workspace/dataset/rosbags/ditch/epN /tank/state /tank/command
    ```
 
-1 エピソードの流れ：`reset_tank.sh` → teleop で `Space`・`X`・`I` を押して初期状態に → `ros2 bag record` を開始 →
-砲塔を 90° に回し（`O`）、壕に進入して通過（ハンドルは切らない）→ 通過したら `Space` で止めて、記録を `Ctrl+C` で止める。
+1 エピソードの流れ：`reset_tank.sh`（車両の位置、teleop の指令、**砲塔の角度（0° に戻るまで待つ）**がすべて初期状態に戻る。teleop は更新後に起動し直すこと）→
+`ros2 bag record` を開始 → **壕の手前で、走りながら**砲塔を 90° に回し（`O`）、壕に進入して通過（ハンドルは切らない）→
+通過したら `Space` で止めて、記録を `Ctrl+C` で止める。
 10〜20 エピソード集める。
 
 変換・学習・評価：

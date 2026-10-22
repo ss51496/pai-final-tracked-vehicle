@@ -16,7 +16,7 @@ import tty
 
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Float32MultiArray
+from std_msgs.msg import Empty, Float32MultiArray
 
 THROTTLE_STEP = 0.25
 STEERING_STEP = 0.25
@@ -33,7 +33,13 @@ class TeleopTank(Node):
         self.throttle = 0.0
         self.steering = 0.0
         self.turret = 0.0
+        # reset_tank.sh が /tank/teleop_reset を送ると、teleop の指令も 0 に戻る
+        # （戻さないと、teleop が配信し続ける古い砲塔角の指令が、リセットの 0° を上書きしてしまう）
+        self.create_subscription(Empty, '/tank/teleop_reset', self.on_reset, 10)
         self.create_timer(1.0 / PUBLISH_HZ, self.publish)
+
+    def on_reset(self, _):
+        self.throttle = self.steering = self.turret = 0.0
 
     def publish(self):
         msg = Float32MultiArray()
