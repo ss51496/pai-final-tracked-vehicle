@@ -13,7 +13,6 @@
       <render_engine>ogre2</render_engine>
     </plugin>
     <plugin filename="ignition-gazebo-imu-system" name="ignition::gazebo::systems::Imu"/>
-    <plugin filename="ignition-gazebo-contact-system" name="ignition::gazebo::systems::Contact"/>
 
     <gravity>0 0 -9.81</gravity>
     <scene>

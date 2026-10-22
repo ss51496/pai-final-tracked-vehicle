@@ -16,7 +16,7 @@ finish ditch_front "砲塔が前向きのまま進入：砲身が向こう側の
 
 scripts/reset_tank.sh > /dev/null
 start_rec ditch_turn90
-X 'ros2 run tank_il evaluate_ditch --mode scripted --turret-deg 90 --entry-throttle 0.25 --switch-x 7.0 --trials 1 > /dev/null' || true
+X 'ros2 run tank_il evaluate_ditch --mode scripted --turret-deg 90 --entry-throttle 0.25 --switch-x 8.7 --trials 1 > /dev/null' || true
 stop_vehicle; stop_rec
 finish ditch_turn90 "砲塔を90°回してから進入：砲身が壁に当たらずに通過"
 

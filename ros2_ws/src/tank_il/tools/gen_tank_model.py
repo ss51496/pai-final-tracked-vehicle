@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """装軌車両（多輪スキッドステア）の model.sdf を生成する。
 
-使い方:  python3 tools/gen_tank_model.py > models/tank/model.sdf
+使い方:  python3 tools/gen_tank_model.py > models/tank/model.sdf                      # 砲身 1.3 m（突堤用）
+         BARREL_LEN=2.0 python3 tools/gen_tank_model.py > models/tank_long/model.sdf   # 砲身 2.0 m（壕用）
 
 履帯は見た目用の箱で、接地・駆動は片側 N 輪の車輪で行う。
 パラメータは架空の値。慣性は形状と質量から計算する。
 """
 import math
+import os
 
 # ---- 車体 ----
 CH_L, CH_W, CH_H = 2.0, 1.0, 0.4      # 車体の長さ(x) 幅(y) 高さ(z) [m]
@@ -24,8 +26,26 @@ MU_LATERAL = 0.5                       # 横方向の摩擦（小さいほど旋
 
 # ---- 砲塔・砲身 ----
 TURRET_R, TURRET_H, TURRET_MASS = 0.35, 0.18, 60.0
-BARREL_R, BARREL_LEN, BARREL_MASS = 0.04, 1.3, 15.0
+BARREL_R, BARREL_LEN, BARREL_MASS = 0.04, float(os.environ.get("BARREL_LEN", 1.3)), 15.0
 BARREL_X0 = 0.20                       # 砲身の根元（砲塔中心から）
+
+# 接触センサー（砲身・車体）。壕の評価に使う。突堤用のモデルには付けない（付けると方策の結果が変わったため）
+CONTACT_SENSORS = os.environ.get("CONTACT_SENSORS", "1") == "1"
+
+HULL_SENSOR = """      <!-- 車体が壁などに接触（激突）したかを検出する（砲身の接触センサーとは別） -->
+      <sensor name="hull_contact" type="contact">
+        <always_on>1</always_on>
+        <update_rate>50</update_rate>
+        <contact><collision>hull_collision</collision></contact>
+      </sensor>
+""" if CONTACT_SENSORS else ""
+BARREL_SENSOR = """      <!-- 砲身が壁などに接触したかを検出する（評価の指標に使う） -->
+      <sensor name="barrel_contact" type="contact">
+        <always_on>1</always_on>
+        <update_rate>50</update_rate>
+        <contact><collision>barrel_collision</collision></contact>
+      </sensor>
+""" if CONTACT_SENSORS else ""
 
 # ---- 派生値 ----
 CH_Z = CLEARANCE + CH_H / 2            # 車体中心の地面からの高さ
@@ -127,7 +147,7 @@ def main():
         <geometry><box><size>{WHEEL_PITCH * (N_WHEELS - 1) + 2 * WHEEL_R + 0.05:.3f} {WHEEL_LEN + 0.02:.3f} {2 * WHEEL_R + 0.02:.3f}</size></box></geometry>
         {color(0.10, 0.10, 0.10)}
       </visual>
-      <sensor name="imu_sensor" type="imu">
+{HULL_SENSOR}      <sensor name="imu_sensor" type="imu">
         <always_on>1</always_on>
         <update_rate>50</update_rate>
         <topic>/imu</topic>
@@ -153,13 +173,7 @@ def main():
         <pose>{barrel_cx:.3f} 0 0 0 {math.pi / 2:.5f} 0</pose>
         <geometry><cylinder><radius>{BARREL_R}</radius><length>{BARREL_LEN}</length></cylinder></geometry>
       </collision>
-      <!-- 砲身が壁などに接触したかを検出する（評価の指標に使う） -->
-      <sensor name="barrel_contact" type="contact">
-        <always_on>1</always_on>
-        <update_rate>50</update_rate>
-        <contact><collision>barrel_collision</collision></contact>
-      </sensor>
-      <visual name="barrel_visual">
+{BARREL_SENSOR}      <visual name="barrel_visual">
         <pose>{barrel_cx:.3f} 0 0 0 {math.pi / 2:.5f} 0</pose>
         <geometry><cylinder><radius>{BARREL_R}</radius><length>{BARREL_LEN}</length></cylinder></geometry>
         {color(0.20, 0.20, 0.20)}

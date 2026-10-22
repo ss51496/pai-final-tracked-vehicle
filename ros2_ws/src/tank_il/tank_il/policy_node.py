@@ -14,6 +14,7 @@ import math
 import numpy as np
 import rclpy
 from rclpy.node import Node
+from rclpy.parameter import Parameter
 from std_msgs.msg import Empty, Float32MultiArray
 
 PUBLISH_HZ = 10.0     # 学習データの fps と同じ
@@ -21,8 +22,10 @@ STATE_TIMEOUT = 1.0   # この秒数 /tank/state が来なければ配信を止�
 
 
 class PolicyNode(Node):
-    def __init__(self, model_path, device, n_action_steps=None, wait_reset=False):
-        super().__init__('policy_node')
+    def __init__(self, model_path, device, n_action_steps=None, wait_reset=False, rate=PUBLISH_HZ, sim_time=True):
+        # sim_time=True なら、制御周期とタイムアウトをシミュレーション時刻で測る（RTF の揺れの影響を受けない）
+        overrides = [Parameter('use_sim_time', Parameter.Type.BOOL, True)] if sim_time else []
+        super().__init__('policy_node', parameter_overrides=overrides)
         # torch と lerobot は pixi 環境にしかないので、ここで読み込む
         import torch
         from lerobot.common.policies.act.modeling_act import ACTPolicy
@@ -43,7 +46,7 @@ class PolicyNode(Node):
         self.enabled = not wait_reset   # True なら /tank/policy_reset を受けるまで動かない（動画の撮影用）
         self.create_subscription(Empty, '/tank/policy_reset', self.on_reset, 10)
         self.pub = self.create_publisher(Float32MultiArray, '/tank/command', 10)
-        self.create_timer(1.0 / PUBLISH_HZ, self.step)
+        self.create_timer(1.0 / rate, self.step)
         self.get_logger().info(f'方策を読み込みました: {model_path}')
 
     def on_reset(self, _):
@@ -77,12 +80,14 @@ def main():
     ap = argparse.ArgumentParser(description='ACT 方策の推論ノード')
     ap.add_argument('--model-path', required=True, help='学習済みモデルのディレクトリ')
     ap.add_argument('--device', default='cpu')
+    ap.add_argument('--rate', type=float, default=PUBLISH_HZ, help='制御周期 [Hz]。デモをシミュレーション時刻で記録したなら 10。突堤のデモは GUI 付き（RTF≈0.75）で実時間のタイムスタンプで記録したため、シミュレーション時刻では 10/0.75≈13.3 が合う')
+    ap.add_argument('--wall-time', action='store_true', help='制御周期を実時間で測る（既定はシミュレーション時刻）')
     ap.add_argument('--wait-reset', action='store_true', help='/tank/policy_reset を受けるまで指令を出さない')
     ap.add_argument('--n-action-steps', type=int, default=8,
                     help='1 回の推論で得た行動チャンクを何ステップ続けて実行するか（0 なら学習時の設定のまま）。突堤では 8 が最良')
     args, ros_args = ap.parse_known_args()
     rclpy.init(args=ros_args)
-    node = PolicyNode(args.model_path, args.device, args.n_action_steps, args.wait_reset)
+    node = PolicyNode(args.model_path, args.device, args.n_action_steps, args.wait_reset, args.rate, not args.wall_time)
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:

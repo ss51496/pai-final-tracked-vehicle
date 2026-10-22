@@ -53,7 +53,7 @@
     </include>
 
     <include>
-      <uri>model://tank</uri>
+      <uri>model://tank_long</uri>
       <name>tank</name>
       <pose>0 0 0.35 0 0 0</pose>
     </include>

@@ -44,3 +44,9 @@
   ros_type: ros_gz_interfaces/msg/Contacts
   gz_type: ignition.msgs.Contacts
   direction: gz_to_ros
+
+# 車体（ハル）の接触。壕の壁への激突を数える（トピック名は砲身の接触センサーと同じ理由で固定）
+- topic: /world/course/model/tank/link/base_link/sensor/hull_contact/contact
+  ros_type: ros_gz_interfaces/msg/Contacts
+  gz_type: ignition.msgs.Contacts
+  direction: gz_to_ros

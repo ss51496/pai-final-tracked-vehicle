@@ -94,6 +94,7 @@ GUI のカメラは起動後に横から見る位置に移動する（`side_view
 2. 記録を始める（エピソード番号 N を毎回変える）。
    ```bash
    ros2 bag record -o /workspace/dataset/rosbags/berm/epN /tank/state /tank/command
+   # （突堤のデモは GUI 付きで実時間のタイムスタンプで記録した。以後は --use-sim-time を付けること）
    ```
 3. **すぐに操縦を始める**。登りは全開（`E`）、頂上の手前で減速して越え、下りは低速で進む。通過したら `Space` で止める。
 4. 通過したらすぐ `Ctrl+C` で記録を止める。途中の無駄な停止は「止まる」ことを学習してしまう。
@@ -125,7 +126,7 @@ pixi run python /workspace/learning/debug_policy_tank.py --episodes 0 5 9 --out 
 ```bash
 ros2 launch tank_il tank_sim.launch.py world:=berm        # シミュレーション
 cd /workspace/pai_training                                # 方策（pixi の環境）
-pixi run python /workspace/ros2_ws/src/tank_il/tank_il/policy_node.py     --model-path /workspace/checkpoints/train/tank_berm_act --n-action-steps 8
+pixi run python /workspace/ros2_ws/src/tank_il/tank_il/policy_node.py     --model-path /workspace/checkpoints/train/tank_berm_act --n-action-steps 8 --rate 13.3
 ```
 
 評価は 10 試行（車両のリセット → 走行 → x ≥ 13 m まで）を記録する。
@@ -151,20 +152,31 @@ ros2 run tank_il evaluate_berm --mode policy --trials 10                 # 方�
 
 ## 壕（段階3）
 
-壕（深さ 1.0 m、壁 40°、上端の幅 2.4 m。底はほぼ V 字）の world は `worlds/ditch.sdf`。
-砲塔が前向きだと、砲身が向こう側の壁に当たって動けなくなる（砲身は車体の前端から約 0.5 m 突き出る）。
-砲塔を 90° 回すと、砲身は壕に沿って横を向くので、壁に当たらずに通過できる。
-壁との接触は、砲身の接触センサーで検出する。
+壕（上端の幅 4.8 m、深さ 1.0 m、壁 40°、底はほぼ平ら）の world は `worlds/ditch.sdf`。
+全開（4 m/s）でも飛び越えられず、底まで落ちる広さにしてある。
+壕では、砲身を 2.0 m（車体の長さと同じ）にした車両 `models/tank_long` を使う（モデル名は `tank` のまま）。
+**砲塔が前向きだと、砲身が向こう側の壁に当たる**（速度にかかわらず）。砲塔を 90° 回すと、砲身は壕に沿って横を向くので、壁に当たらない。
+壁との接触は、砲身と車体の接触センサーで検出する。突堤の車両 `models/tank`（砲身 1.3 m、センサーなし）とは別のモデルにしてある
+（砲身の長さが突堤の方策の結果を変えるため）。
 
 ```bash
 ros2 launch tank_il tank_sim.launch.py world:=ditch
-# ルールベースの手順で試す（砲塔 90° → 0.25 で進入 → x=7.0 m から全開）
-ros2 run tank_il evaluate_ditch --mode scripted --turret-deg 90 --entry-throttle 0.25 --switch-x 7.0 --trials 3
+# ルールベースの手順で試す（砲塔 90° → 0.25 で進入 → x=8.7 m から全開）
+ros2 run tank_il evaluate_ditch --mode scripted --turret-deg 90 --entry-throttle 0.25 --switch-x 8.7 --trials 3
 ./scripts/record_ditch_clips.sh    # 比較映像（前向きでつかえる／90° 回して通過）
 ```
 
-壕の寸法は `tools/gen_ditch.py` のパラメータ（環境変数 `DITCH_TOP_W` など）で変える。
-`scripts/scan_ditch.sh` で寸法を変えながら、砲身の接触と通過を調べられる。
+壕の寸法は `tools/gen_ditch.py`（環境変数 `DITCH_TOP_W`、`DITCH_DEPTH`、`DITCH_SLOPE`）、砲身の長さは `tools/gen_tank_model.py`（`BARREL_LEN`）で変える。
+`scripts/scan_ditch.sh` で寸法を変えながら、接触と通過を調べられる。
+
+### 壕のデモ収集
+
+**rosbag はシミュレーション時刻で記録する**（`--use-sim-time`）。実時間で記録すると、シミュレーションの速さ（RTF）によってデータの時間の刻みが変わり、
+推論時の制御周期と合わなくなる（突堤で経験した問題。WORKLOG 参照）。
+
+1. `reset_tank.sh` で車両を初期位置に戻し、teleop は `Space`・`X`・`I` で初期状態に戻す。
+2. `ros2 bag record --use-sim-time -o /workspace/dataset/rosbags/ditch/epN /tank/state /tank/command`
+3. 砲塔を 90° に回し（`O`）、低速（0.25）で進入、壕の出口の手前で全開（`E`）にする。ハンドルは切らない。通過したら `Space` で止めて、記録を止める。
 
 ## 結果（突堤、各 10 試行）
 
@@ -172,12 +184,12 @@ ros2 run tank_il evaluate_ditch --mode scripted --turret-deg 90 --entry-throttle
 |---|---|---|---|
 | ルールベース：全開 | 10/10 | 0/10 | 3.8 s |
 | ルールベース：0.5 一定 | 10/10 | 10/10 | 7.2 s |
-| ルールベース：0.25 一定 | 10/10 | 10/10 | 13.6 s |
-| ACT（`n_action_steps=1`） | 10/10 | 1/10 | 3.4 s |
-| **ACT（`n_action_steps=8`）** | 10/10 | **10/10** | **3.6 s** |
-| ACT（`n_action_steps=16`） | 10/10 | 6/10 | 3.8 s |
+| ルールベース：0.25 一定 | 10/10 | 10/10 | 13.7 s |
+| ACT（`n_action_steps=1`） | 10/10 | 0/10 | 3.0 s |
+| **ACT（`n_action_steps=8`）** | 10/10 | **10/10** | **3.1 s** |
+| ACT（`n_action_steps=16`） | 10/10 | 7/10 | 4.1 s |
 
-全開と同じ速さで、跳ねずに通過できた。詳細と考察は `WORKLOG.md`、図は `docs/`、全記録は `results/`。
+全開と同じ程度の速さで、跳ねずに通過できた。方策の制御周期はシミュレーション時刻で 13.3 Hz（突堤のデモは RTF≈0.75 の GUI で、実時間のタイムスタンプで記録したため。WORKLOG 参照）。詳細と考察は `WORKLOG.md`、図は `docs/`、全記録は `results/`。
 
 ## 参考
 

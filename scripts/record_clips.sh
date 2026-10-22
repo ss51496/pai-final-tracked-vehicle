@@ -30,7 +30,7 @@ finish human_demo "熟練者のテレオペ（登りは一定速度、頂上で�
 
 # ---- 場面 3: 学習した方策 ----
 docker exec -d -u ubuntu -w /workspace/pai_training -e DISPLAY=$D pai_ros2 bash -lc \
-  "export PATH=\$HOME/.pixi/bin:\$PATH; source /opt/ros/humble/setup.bash; source /workspace/ros2_ws/install/setup.bash; pixi run python /workspace/ros2_ws/src/tank_il/tank_il/policy_node.py --model-path $MODEL --wait-reset > /workspace/logs/policy_video.log 2>&1"
+  "export PATH=\$HOME/.pixi/bin:\$PATH; source /opt/ros/humble/setup.bash; source /workspace/ros2_ws/install/setup.bash; pixi run python /workspace/ros2_ws/src/tank_il/tank_il/policy_node.py --model-path $MODEL --rate 13.3 --wait-reset > /workspace/logs/policy_video.log 2>&1"
 sleep 25
 scripts/reset_tank.sh > /dev/null
 start_rec policy

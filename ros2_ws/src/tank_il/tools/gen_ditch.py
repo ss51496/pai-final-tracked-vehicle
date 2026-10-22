@@ -15,7 +15,7 @@ import os
 import sys
 
 X_NEAR = 6.0          # 手前の縁の x 座標 [m]（車両の初期位置 x=0 から助走する）
-TOP_W = float(os.environ.get("DITCH_TOP_W", 2.4))     # 壕の上端の幅 [m]（環境変数で上書き可）。車輪の間隔（1.8 m）より広くしないと、車両が壕をまたいで砲身が壁に当たらない
+TOP_W = float(os.environ.get("DITCH_TOP_W", 4.8))     # 壕の上端の幅 [m]（環境変数で上書き可）。全開（4 m/s）でも飛び越えられず底まで落ちる広さ
 DEPTH = float(os.environ.get("DITCH_DEPTH", 1.0))     # 深さ [m]
 SLOPE_DEG = float(os.environ.get("DITCH_SLOPE", 40.0))  # 壁の角度 [deg]
 WIDTH = 12.0          # 壕の長さ（y 方向）[m]
