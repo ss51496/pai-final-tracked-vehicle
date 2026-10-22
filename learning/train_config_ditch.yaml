@@ -1,0 +1,19 @@
+# 壕の ACT の学習設定（learning/train.sh ditch で configs/train_config.yaml にリンクして学習する）
+dataset_root: "/workspace/dataset/lerobot_dataset/tank_ditch"
+repo_id: "tank_ditch"
+output_directory: "/workspace/checkpoints/train/tank_ditch_act"
+config_path: "/workspace/learning/tank_features_ditch.py"
+
+device: "cpu"
+training_steps: 5000
+log_freq: 50
+num_workers: 2
+batch_size: 8
+chunk_size: 16          # 先読みする行動の数（fps 10 なら 1.6 秒分）
+n_action_steps: 1       # 毎回モデルを呼び、チャンクの先頭 1 個だけを実行する
+learning_rate: 0.0001
+# 時刻はエピソード先頭からの相対秒。fps=10 なので 0.1 秒刻みで 16 個
+delta_timestamps:
+  observation.environment_state: [0.0]
+  observation.state: [0.0]
+  action: [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5]

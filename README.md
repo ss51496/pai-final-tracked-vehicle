@@ -171,12 +171,34 @@ ros2 run tank_il evaluate_ditch --mode scripted --turret-deg 90 --entry-throttle
 
 ### 壕のデモ収集
 
+**重要なのは、壕に入るときと出るときの「飛び」を抑えつつ、速度も保つこと**。ゆっくり走るだけでは不十分で、
+重い車両が宙に浮くと衝撃で故障するため、通過のときは速度を抑えて衝撃を和らげ、それ以外では速度を出す。
+壕の外では速く走り、壕の縁（入るとき・出るとき）ではアクセルを緩める操作を、毎回そろえて行う。
+
 **rosbag はシミュレーション時刻で記録する**（`--use-sim-time`）。実時間で記録すると、シミュレーションの速さ（RTF）によってデータの時間の刻みが変わり、
 推論時の制御周期と合わなくなる（突堤で経験した問題。WORKLOG 参照）。
 
-1. `reset_tank.sh` で車両を初期位置に戻し、teleop は `Space`・`X`・`I` で初期状態に戻す。
-2. `ros2 bag record --use-sim-time -o /workspace/dataset/rosbags/ditch/epN /tank/state /tank/command`
-3. 砲塔を 90° に回し（`O`）、低速（0.25）で進入、壕の出口の手前で全開（`E`）にする。ハンドルは切らない。通過したら `Space` で止めて、記録を止める。
+noVNC のターミナルを 4 つ使う（それぞれ最初に `source /opt/ros/humble/setup.bash` と `source /workspace/ros2_ws/install/setup.bash`）。
+
+1. シミュレーション：`ros2 launch tank_il tank_sim.launch.py world:=ditch`
+2. 操縦：`ros2 run tank_il teleop_tank`
+3. 飛びの表示（任意）：`ros2 run tank_il hop_monitor` — 壕を 1 回通過するたびに、入るとき・出るときの空中の時間（0.3 秒未満が目安）、所要時間、砲身の接触を表示する。操作の調整の目安にする。
+4. リセットと記録（エピソードごとに N を 0, 1, 2… と変える）：
+   ```bash
+   /workspace/scripts/reset_tank.sh
+   ros2 bag record --use-sim-time -o /workspace/dataset/rosbags/ditch/epN /tank/state /tank/command
+   ```
+
+1 エピソードの流れ：`reset_tank.sh` → teleop で `Space`・`X`・`I` を押して初期状態に → `ros2 bag record` を開始 →
+砲塔を 90° に回し（`O`）、壕に進入して通過（ハンドルは切らない）→ 通過したら `Space` で止めて、記録を `Ctrl+C` で止める。
+10〜20 エピソード集める。
+
+変換・学習・評価：
+
+```bash
+docker exec -u ubuntu -w /workspace pai_ros2 bash learning/convert.sh ditch --overwrite   # rosbag → LeRobotDataset
+docker exec -u ubuntu -w /workspace pai_ros2 bash learning/train.sh ditch                 # ACT の学習
+```
 
 ## 結果（突堤、各 10 試行）
 

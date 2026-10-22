@@ -40,6 +40,7 @@ setup(
             'teleop_tank = tank_il.teleop_tank:main',
             'evaluate_berm = tank_il.evaluate_berm:main',
             'evaluate_ditch = tank_il.evaluate_ditch:main',
+            'hop_monitor = tank_il.hop_monitor:main',
         ],
     },
 )
