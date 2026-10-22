@@ -1,0 +1,22 @@
+<svg viewBox="0 0 760 300" xmlns="http://www.w3.org/2000/svg" font-family="Yu Gothic UI, Meiryo, Noto Sans CJK JP, sans-serif" font-size="12">
+  <defs><marker id="a" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#2f6f4e"/></marker></defs>
+  <rect x="2" y="2" width="756" height="296" rx="8" fill="#fafbfc" stroke="#cfd6dd"/>
+  <!-- 指令側 -->
+  <rect x="20" y="30" width="150" height="46" rx="6" fill="#e8f1ec" stroke="#2f6f4e"/><text x="95" y="50" text-anchor="middle">teleop_tank</text><text x="95" y="67" text-anchor="middle" font-size="10">（キー操作、20 Hz）</text>
+  <rect x="20" y="96" width="150" height="46" rx="6" fill="#fff3d1" stroke="#b98a00"/><text x="95" y="116" text-anchor="middle">policy_node（ACT）</text><text x="95" y="133" text-anchor="middle" font-size="10">（推論、10 Hz）</text>
+  <rect x="215" y="62" width="150" height="46" rx="6" fill="#fff" stroke="#2f6f4e"/><text x="290" y="82" text-anchor="middle">/tank/command</text><text x="290" y="99" text-anchor="middle" font-size="10">[throttle, steering, turret]</text>
+  <rect x="410" y="62" width="130" height="46" rx="6" fill="#e8f1ec" stroke="#2f6f4e"/><text x="475" y="82" text-anchor="middle">tank_driver</text><text x="475" y="99" text-anchor="middle" font-size="10">/cmd_vel と砲塔角へ変換</text>
+  <rect x="585" y="30" width="155" height="112" rx="6" fill="#e6eefb" stroke="#3a64a8"/><text x="662" y="52" text-anchor="middle">Ignition Gazebo</text>
+  <text x="662" y="72" text-anchor="middle" font-size="10">自作車両（14 輪＋砲塔）</text><text x="662" y="88" text-anchor="middle" font-size="10">DiffDrive／JointPosition</text><text x="662" y="104" text-anchor="middle" font-size="10">IMU／Odometry／JointState</text><text x="662" y="124" text-anchor="middle" font-size="10">ros_gz_bridge で接続</text>
+  <!-- 観測側 -->
+  <rect x="585" y="190" width="155" height="46" rx="6" fill="#e8f1ec" stroke="#2f6f4e"/><text x="662" y="210" text-anchor="middle">state_publisher</text><text x="662" y="227" text-anchor="middle" font-size="10">観測を1つにまとめる</text>
+  <rect x="330" y="190" width="200" height="46" rx="6" fill="#fff" stroke="#2f6f4e"/><text x="430" y="210" text-anchor="middle">/tank/state</text><text x="430" y="227" text-anchor="middle" font-size="10">[x, z, pitch, v_forward, turret]</text>
+  <rect x="120" y="190" width="160" height="46" rx="6" fill="#f3e8fb" stroke="#7a4aa8"/><text x="200" y="210" text-anchor="middle">rosbag2 → LeRobot</text><text x="200" y="227" text-anchor="middle" font-size="10">データセット → ACT 学習</text>
+  <g stroke="#2f6f4e" stroke-width="1.6" fill="none" marker-end="url(#a)">
+    <path d="M170,53 L215,78"/><path d="M170,119 L215,92"/><path d="M365,85 L410,85"/><path d="M540,85 L585,85"/>
+    <path d="M662,142 L662,190"/><path d="M585,213 L530,213"/><path d="M330,213 L280,213"/>
+  </g>
+  <path d="M430,190 C430,160 95,170 95,142" stroke="#b98a00" stroke-width="1.6" fill="none" marker-end="url(#a)"/>
+  <text x="250" y="168" font-size="10" fill="#7a5a00">方策の入力</text>
+  <text x="20" y="275" font-size="10.5" fill="#555">teleop と方策は同じ /tank/command に配信するので、差し替えるだけで動く。学習の行動は /tank/command の 3 次元、観測は /tank/state の 5 次元。</text>
+</svg>

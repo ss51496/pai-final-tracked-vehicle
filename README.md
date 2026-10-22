@@ -1,31 +1,62 @@
 # 装軌車両の不整地走行を模倣学習（ACT）で再現する
 
-Ignition Gazebo 上に、砲塔付きの装軌車両（多輪スキッドステアで履帯を模擬）を自作し、
-熟練操縦者のテレオペデモから ACT を学習して、地形に応じた速度の切り替えを自律的に行わせる。
+Ignition Gazebo 上に、砲塔付きの**装軌車両**（多輪スキッドステアで履帯を模擬）を自作し、
+操縦経験者のテレオペデモから **ACT** を学習して、**飛びを抑えつつ速度を保つ**操縦を自律的に行わせる。
 建設機械・災害対応ロボット・惑星探査ローバーなど、不整地走行ロボットの自律化を想定している。
-
 車両のパラメータはすべて架空の値で、実在の車両の情報は使っていない。
 
-## タスク
+重い車両は、段差や溝の縁で宙に浮く（「飛ぶ」）と、着地の衝撃で故障する。かといって、ずっとゆっくり走るだけでは効率が悪い。
+**通過の瞬間は速度を抑えて衝撃を和らげ、それ以外では速度を出す**技能を、10 回程度のデモから学習できるかを調べた。
 
-| 段階 | 内容 |
+| 地形 | 難しさ |
 |---|---|
-| 突堤（berm） | 台形の山を、登りは全開、頂上で減速して越える。全開のまま越えると車体が跳ねる |
-| 壕（ditch）※予定 | 砲塔を前に向けたまま進入すると砲身が壁に当たる。90° 回して進入する |
+| **突堤**（台形の山） | 全開のまま頂上を越えると車体が跳ねる |
+| **壕**（V 字の溝） | 入るときと出るときに飛ぶ。砲塔が前向きのまま進入すると、砲身が向こう側の壁に当たって動けなくなるので、走りながら砲塔を 90° 回す操作も必要 |
+
+## 成果（各 10 試行）
+
+**突堤**：学習した方策は、全開と同程度の速さで、跳ねずに通過した。
+
+| 方式 | 通過 | 跳ねずに通過 | 所要時間（平均） |
+|---|---|---|---|
+| ルールベース：全開 | 10/10 | 0/10 | 3.8 s |
+| ルールベース：0.5 一定 | 10/10 | 10/10 | 7.2 s |
+| ルールベース：0.25 一定 | 10/10 | 10/10 | 13.7 s |
+| ACT（`n_action_steps=1`） | 10/10 | 0/10 | 3.0 s |
+| **ACT（`n_action_steps=8`）** | 10/10 | **10/10** | **3.1 s** |
+| ACT（`n_action_steps=16`） | 10/10 | 7/10 | 4.1 s |
+
+**壕**：方策は、砲塔を回す操作を含めて再現し、熟練者のデモと同程度の飛びで、約 26% 速く通過した。
+
+| 方式 | 通過 | 接触せずに通過 | 空中：入る／出る／合計 | 所要時間 |
+|---|---|---|---|---|
+| 熟練者のデモ（操作指令を再生） | 10/10 | 10/10 | 0.35／0.48／0.83 s | 5.0 s |
+| ルールベース：砲塔 90°・0.25 一定 | 10/10 | 10/10 | 0.22／0.04／0.26 s | 13.1 s |
+| ルールベース：砲塔 90°・全開一定 | 10/10 | 10/10 | 0.52／0.48／1.00 s | 3.6 s |
+| ルールベース：砲塔 0°（前向き）・0.5 一定 | 10/10 | **0/10** | 0.35／0.25／0.60 s | 6.8 s |
+| ACT（`n_action_steps=8`） | 10/10 | 10/10 | 0.46／0.51／0.96 s | 3.3 s |
+| **ACT（`n_action_steps=16`）** | 10/10 | 10/10 | **0.37／0.48／0.85 s** | **3.7 s** |
+
+全条件の記録は `results/`、図は `docs/`、作業の経緯・失敗と原因の分析は `WORKLOG.md`、レポートは `report/`。
+シミュレーションはほぼ決定的で毎回同じ初期位置から始めるため、10 試行は独立ではない（詳細はレポートの「限界」）。
 
 ## 構成
 
 ```
 .
-├── scripts/                 # コンテナ起動、リセット、試験用スクリプト
+├── scripts/                 # コンテナ起動、リセット、評価、動画の撮影
 ├── ros2_ws/src/tank_il/     # 自作 ROS 2 パッケージ（ament_python）
-│   ├── tools/               # モデル・地形の生成スクリプト（gen_tank_model.py, gen_berm.py）
-│   ├── models/              # tank（車両）, berm（突堤）
-│   ├── worlds/              # flat.sdf, berm.sdf（world 名はどれも course）
-│   ├── config/bridge.yaml   # ROS ⇔ Gazebo のトピック対応表
+│   ├── tools/               # モデル・地形の生成（gen_tank_model.py, gen_berm.py, gen_ditch.py）
+│   ├── models/              # tank（突堤用）, tank_long（壕用）, berm, ditch
+│   ├── worlds/              # flat.sdf, berm.sdf, ditch.sdf（world 名はどれも course）
+│   ├── config/              # bridge.yaml（トピック対応表）、撮影用の GUI 設定
 │   ├── launch/              # tank_sim.launch.py
-│   └── tank_il/             # teleop_tank, tank_driver, state_publisher
-└── learning/                # 変換スクリプトと学習設定
+│   └── tank_il/             # teleop_tank, tank_driver, state_publisher, policy_node,
+│                            # hop_monitor, evaluate_berm, evaluate_ditch
+├── learning/                # 変換・学習・可視化（pai_training と組み合わせて使う）
+├── results/                 # 評価結果（CSV と要約）
+├── docs/  report/           # 図、最終レポート
+└── WORKLOG.md               # 作業ログ（失敗・原因・設計判断・結果）
 ```
 
 ### トピック
@@ -36,12 +67,12 @@ Ignition Gazebo 上に、砲塔付きの装軌車両（多輪スキッドステ�
 | `/tank/state` | Float32MultiArray | `[x, z, pitch, v_forward, turret_angle]`。pitch は機首上げ（登り）が正。**学習の観測** |
 | `/cmd_vel` | Twist | `tank_driver` が `/tank/command` から作る（v = throttle × 4 m/s、ω = -steering × 1.5 rad/s） |
 
-teleop と方策ノードはどちらも `/tank/command` に配信するので、差し替えるだけで動く。
+teleop と方策ノードはどちらも `/tank/command` に配信するので、差し替えるだけで動く（推論中は teleop を止めておく）。
 
 ## セットアップ
 
-Windows + WSL2（Ubuntu）+ Docker Desktop で、WSL の Ubuntu 側にこのリポジトリを置く。
-Docker Desktop の Settings → Resources → WSL integration で、Ubuntu を有効にしておく。
+Windows + WSL2（Ubuntu）+ Docker Desktop。Docker Desktop の Settings → Resources → WSL integration で Ubuntu を有効にし、
+WSL の Ubuntu 側にこのリポジトリを置く（コンテナの `/workspace` にマウントされる）。
 
 ```bash
 git clone <このリポジトリ> ~/pai_final && cd ~/pai_final
@@ -55,23 +86,23 @@ cd /workspace/ros2_ws && source /opt/ros/humble/setup.bash
 colcon build --symlink-install --packages-select tank_il
 ```
 
-学習環境（講義の `matsuolab/pai_training`、pixi）は別に用意する。このリポジトリには含めない。
+学習環境（講義の `matsuolab/pai_training`、pixi）は別に用意する。このリポジトリには含めない。依存パッケージの取得に 20〜30 分かかる。
 
 ```bash
 docker exec -u ubuntu -w /workspace pai_ros2 bash learning/setup_training.sh
 ```
 
+以降、noVNC のターミナルは、最初に `source /opt/ros/humble/setup.bash` と `source /workspace/ros2_ws/install/setup.bash` を実行しておく。
+動かなくなった Gazebo は、`/workspace/scripts/kill_sim.sh` で止められる。
+
 ## シミュレーションと操縦
 
-noVNC 上のターミナルを2つ開く（それぞれ最初に `source /opt/ros/humble/setup.bash` と
-`source /workspace/ros2_ws/install/setup.bash`）。
-
 ```bash
-ros2 launch tank_il tank_sim.launch.py world:=berm    # Gazebo + bridge + tank_driver + state_publisher
-ros2 run tank_il teleop_tank                          # もう一方のターミナル
+ros2 launch tank_il tank_sim.launch.py world:=berm      # または world:=ditch（Gazebo + bridge + tank_driver + state_publisher）
+ros2 run tank_il teleop_tank                            # もう一方のターミナル
 ```
 
-GUI のカメラは起動後に横から見る位置に移動する（`side_view:=false` で無効）。
+GUI のカメラは、起動後に横から見る位置に移動する（`side_view:=false` で無効）。
 
 | キー | 操作 |
 |---|---|
@@ -83,136 +114,105 @@ GUI のカメラは起動後に横から見る位置に移動する（`side_view
 | `I` / `O` / `U` | 砲塔を 0° / 右 90° / 左 90° にする |
 | `Q` | 終了 |
 
-## データ収集（突堤）
+操縦中に「飛び」を確かめるには、別のターミナルで `ros2 run tank_il hop_monitor` を動かす。
+壕を 1 回通過するたびに、入るとき・出るときの空中の時間（0.3 秒未満が目安）、所要時間、砲身の接触を表示する。
 
-毎回同じ手順で操縦する。ACT は複数の軌道が混ざったデータが苦手なので、操作をそろえる。
+## データ収集
 
-1. 車両を初期位置に戻す（別のターミナルで）。teleop は `Space`・`X`・`I` で初期状態に戻す。
+毎回同じ手順で操縦する（ACT は複数の軌道が混ざったデータが苦手）。ターミナルは 3〜4 つ使う（シミュレーション、操縦、リセットと記録、飛びの表示）。
+
+1. 車両を初期位置に戻す。**車両の位置・teleop の指令・砲塔の角度（0° に戻るまで待つ）がすべて初期状態に戻る。**
    ```bash
    /workspace/scripts/reset_tank.sh
    ```
-2. 記録を始める（エピソード番号 N を毎回変える）。
+2. 記録を始める。**必ず `--use-sim-time` を付ける**（エピソード番号 N は毎回変える）。
    ```bash
-   ros2 bag record -o /workspace/dataset/rosbags/berm/epN /tank/state /tank/command
-   # （突堤のデモは GUI 付きで実時間のタイムスタンプで記録した。以後は --use-sim-time を付けること）
+   ros2 bag record --use-sim-time -o /workspace/dataset/rosbags/ditch/epN /tank/state /tank/command   # 突堤は .../berm/epN
    ```
-3. **すぐに操縦を始める**。登りは全開（`E`）、頂上の手前で減速して越え、下りは低速で進む。通過したら `Space` で止める。
-4. 通過したらすぐ `Ctrl+C` で記録を止める。途中の無駄な停止は「止まる」ことを学習してしまう。
+3. **すぐに操縦を始める**。壕では、走りながら砲塔を 90° に回し（`O` / `U`）、壕に進入して通過する（ハンドルは切らない）。通過したら `Space` で止める。
+4. `Ctrl+C` で記録を止める。**失敗したエピソードは、そのフォルダを削除して、同じ番号で撮り直す**（`rm -rf .../epN`）。
 5. 10〜20 エピソード集める。
+
+**時間の基準が重要**：rosbag を実時間で記録すると、シミュレーションの速さ（RTF）によって、データの時間の刻みが変わる。
+推論時の制御周期（シミュレーション時刻）と合わなくなり、結果が不安定になる（WORKLOG 参照）。
+この README の同梱結果のうち、突堤のデモだけは実時間で記録したため、推論の制御周期を 13.3 Hz にしている（`--rate 13.3`）。
+新しく集めるデモは `--use-sim-time` で記録して、`--rate 10` で動かす。
+
+**操作のコツ（壕）**：壕の外では速く走り、壕の縁（入るとき・出るとき）でアクセルを緩める。
+ルールベースの探索では、縁の手前だけ 0.25 に落とし、ほかは全開にすると、飛びを 0.32 秒に抑えつつ 7.4 秒で通過できた（レポート 4.3 節）。
 
 ## 変換・学習
 
 ```bash
-cd /workspace/pai_training
-pixi run python /workspace/learning/rosbag2lerobot_tank.py --config /workspace/learning/conversion_config.yaml
-WANDB_MODE=offline pixi run train
+docker exec -u ubuntu -w /workspace pai_ros2 bash learning/convert.sh ditch --overwrite    # rosbag → LeRobotDataset（突堤は berm）
+docker exec -u ubuntu -w /workspace pai_ros2 bash learning/train.sh ditch                  # ACT の学習（WANDB_MODE=offline、CPU で約 30 分）
 ```
 
-設定は `learning/conversion_config.yaml`、`learning/train_config.yaml`、`learning/tank_features.py`。
-変換では、操縦を始める前と終えた後の停止区間を切り詰める（`trim_idle`）。切り詰めないと、開始前の観測が毎回同じで動き出す時刻だけが違うため、方策が「止まったまま」と出力して動き出せない。
+設定は `learning/` の `conversion_config*.yaml`、`train_config*.yaml`、`tank_features*.py`。
+変換では、操縦の前後の停止区間を切り詰める（`trim_idle`）。切り詰めないと、開始前の観測が毎回同じなのに動き出す時刻だけが違うため、方策が「止まったまま」と出力して動き出せない。
 
-学習の loss の推移と、学習データ上の予測と正解の比較（`debug-policy` 相当）は、次の図にできる。
+loss の推移と、学習データ上の予測と正解の比較は、次で図にできる（`pai_training` の pixi 環境で実行）。
 
 ```bash
 cd /workspace/pai_training
-pixi run python /workspace/learning/plot_loss.py /workspace/logs/train_berm.log /workspace/docs/loss_berm.png
-pixi run python /workspace/learning/debug_policy_tank.py --episodes 0 5 9 --out /workspace/docs/debug_policy_berm.png
+pixi run python /workspace/learning/plot_loss.py /workspace/logs/train_ditch.log /workspace/docs/loss_ditch.png
+pixi run python /workspace/learning/debug_policy_tank.py --dataset-root /workspace/dataset/lerobot_dataset/tank_ditch \
+    --repo-id tank_ditch --policy-path /workspace/checkpoints/train/tank_ditch_act --episodes 0 4 9 --out /workspace/docs/debug_policy_ditch.png
+pixi run python /workspace/learning/plot_demos.py --root /workspace/dataset/lerobot_dataset/tank_ditch --out /workspace/docs/ditch_demo2.png
 ```
 
 ## 推論と評価
 
-推論中は teleop を必ず止める（同じ `/tank/command` に配信して競合するため）。
-
 ```bash
-ros2 launch tank_il tank_sim.launch.py world:=berm        # シミュレーション
-cd /workspace/pai_training                                # 方策（pixi の環境）
-pixi run python /workspace/ros2_ws/src/tank_il/tank_il/policy_node.py     --model-path /workspace/checkpoints/train/tank_berm_act --n-action-steps 8 --rate 13.3
+ros2 launch tank_il tank_sim.launch.py world:=ditch                         # シミュレーション
+cd /workspace/pai_training                                                  # 方策（pixi の環境、teleop は止める）
+pixi run python /workspace/ros2_ws/src/tank_il/tank_il/policy_node.py \
+    --model-path /workspace/checkpoints/train/tank_ditch_act --n-action-steps 16 --rate 10
 ```
 
-評価は 10 試行（車両のリセット → 走行 → x ≥ 13 m まで）を記録する。
-「跳ねずに通過」は、通過かつ最高 z < 1.70 m かつ空中 < 0.6 s（IMU の加速度の大きさが 3 m/s² 未満の時間）。
+`--n-action-steps`（1 回の推論で得た行動チャンクを何ステップ続けて実行するか）が結果を大きく左右する（1 では動けない／跳ねる。8〜16 が良い）。
+
+評価は、車両をリセットして走らせる 10 試行を記録する（結果は CSV に保存）。**操縦者の画面のシミュレーションと干渉しないよう、
+試験は隔離環境（ROS ドメインと Gazebo パーティションを分けた環境）で行う。**
 
 ```bash
-ros2 run tank_il evaluate_berm --mode const --throttle 1.0 --trials 10   # ルールベース（一定スロットル）
-ros2 run tank_il evaluate_berm --mode policy --trials 10                 # 方策（policy_node を起動しておく）
+scripts/eval_all_berm.sh /workspace/checkpoints/train/tank_berm_act n8      # 突堤（const1.0 const0.5 const0.25 n1 n8 n16）
+scripts/eval_ditch.sh baseline                                              # 壕のルールベース
+scripts/eval_ditch.sh policy 8 16                                           # 壕の方策
+# 熟練者のデモの操作指令を、シミュレーション時刻に合わせて再生して、同じ指標で測る
+ros2 run tank_il evaluate_ditch --mode replay --bag-dir /workspace/dataset/rosbags/ditch
 ```
+
+指標：突堤の「跳ねずに通過」＝通過かつ最高 z < 1.70 m かつ空中 < 0.6 s（IMU の加速度の大きさが 3 m/s² 未満の時間）。
+壕の「接触せずに通過」＝通過かつ砲身の接触センサーが 0 件。空中の時間（入る／出る）と所要時間も併記する（熟練者のデモを基準に比較する）。
 
 ## 動画の撮影
 
-3 つの場面（全開のまま通過／熟練者のデモの再現／方策の自律走行）を自動で録画する。
 撮影専用の仮想ディスプレイ（:99）に、3D ビューだけの Gazebo を表示して録画するので、画面に他のウィンドウが重なっても影響しない。
 実行すると、動いているシミュレーションは停止する。
 
 ```bash
-./scripts/record_clips.sh      # videos/<場面>.mp4（字幕つき）と videos/<場面>_slow.mp4（4 倍スロー）ができる
+./scripts/record_clips.sh          # 突堤：全開／熟練者のデモ／方策     → videos/<場面>.mp4（字幕つき）と _slow.mp4（4 倍スロー）
+./scripts/record_ditch_clips.sh    # 壕：砲塔前向き／90°／全開／熟練者のデモ／方策
+./scripts/make_final_video.sh      # 説明カードと組み合わせて、1 本の動画（videos/final_draft.mp4）にする
 ```
 
-動き始めの 1 秒前〜動きが止まった 1.5 秒後に自動で切り出す。録画のシミュレーションは
-`ros2 launch tank_il tank_sim.launch.py world:=berm video:=true`（撮影用の GUI 設定 `config/video_gui.config`）。
+動き始めの 1 秒前〜動きが止まった 1.5 秒後に、自動で切り出す。
 
-## 壕（段階3）
+## 壕の設計
 
-壕（上端の幅 4.8 m、深さ 1.0 m、壁 40°、底はほぼ平ら）の world は `worlds/ditch.sdf`。
-全開（4 m/s）でも飛び越えられず、底まで落ちる広さにしてある。
-壕では、砲身を 2.0 m（車体の長さと同じ）にした車両 `models/tank_long` を使う（モデル名は `tank` のまま）。
-**砲塔が前向きだと、砲身が向こう側の壁に当たる**（速度にかかわらず）。砲塔を 90° 回すと、砲身は壕に沿って横を向くので、壁に当たらない。
-壁との接触は、砲身と車体の接触センサーで検出する。突堤の車両 `models/tank`（砲身 1.3 m、センサーなし）とは別のモデルにしてある
-（砲身の長さが突堤の方策の結果を変えるため）。
+壕は、上端の幅 4.8 m、深さ 1.0 m、壁 40°。全開（4 m/s）でも飛び越えられず、底まで落ちる広さにした。
+幅を広げると、前向きでも砲身が壁に当たらなくなるので、砲身を 2.0 m（車体の長さと同じ）にして、前向きなら速度にかかわらず壁に当たるようにした。
+砲身の長さは突堤の方策の結果を変える（砲塔の重さと重心が変わる）ため、**突堤用の車両 `models/tank`（砲身 1.3 m）と、壕用の車両 `models/tank_long`（砲身 2.0 m、接触センサー付き）を分けている**（モデル名はどちらも `tank`）。
 
-```bash
-ros2 launch tank_il tank_sim.launch.py world:=ditch
-# ルールベースの手順で試す（砲塔 90° → 0.25 で進入 → x=8.7 m から全開）
-ros2 run tank_il evaluate_ditch --mode scripted --turret-deg 90 --entry-throttle 0.25 --switch-x 8.7 --trials 3
-./scripts/record_ditch_clips.sh    # 比較映像（前向きでつかえる／90° 回して通過）
-```
+寸法は `tools/gen_ditch.py`（環境変数 `DITCH_TOP_W`、`DITCH_DEPTH`、`DITCH_SLOPE`）、砲身の長さは `tools/gen_tank_model.py`（`BARREL_LEN`）で変える。
+`scripts/scan_ditch.sh` で、寸法を変えながら接触と通過を調べられる。
 
-壕の寸法は `tools/gen_ditch.py`（環境変数 `DITCH_TOP_W`、`DITCH_DEPTH`、`DITCH_SLOPE`）、砲身の長さは `tools/gen_tank_model.py`（`BARREL_LEN`）で変える。
-`scripts/scan_ditch.sh` で寸法を変えながら、接触と通過を調べられる。
+## 既知の限界
 
-### 壕のデモ収集
-
-**重要なのは、壕に入るときと出るときの「飛び」を抑えつつ、速度も保つこと**。ゆっくり走るだけでは不十分で、
-重い車両が宙に浮くと衝撃で故障するため、通過のときは速度を抑えて衝撃を和らげ、それ以外では速度を出す。
-壕の外では速く走り、壕の縁（入るとき・出るとき）ではアクセルを緩める操作を、毎回そろえて行う。
-
-**rosbag はシミュレーション時刻で記録する**（`--use-sim-time`）。実時間で記録すると、シミュレーションの速さ（RTF）によってデータの時間の刻みが変わり、
-推論時の制御周期と合わなくなる（突堤で経験した問題。WORKLOG 参照）。
-
-noVNC のターミナルを 4 つ使う（それぞれ最初に `source /opt/ros/humble/setup.bash` と `source /workspace/ros2_ws/install/setup.bash`）。
-
-1. シミュレーション：`ros2 launch tank_il tank_sim.launch.py world:=ditch`
-2. 操縦：`ros2 run tank_il teleop_tank`
-3. 飛びの表示（任意）：`ros2 run tank_il hop_monitor` — 壕を 1 回通過するたびに、入るとき・出るときの空中の時間（0.3 秒未満が目安）、所要時間、砲身の接触を表示する。操作の調整の目安にする。
-4. リセットと記録（エピソードごとに N を 0, 1, 2… と変える）：
-   ```bash
-   /workspace/scripts/reset_tank.sh
-   ros2 bag record --use-sim-time -o /workspace/dataset/rosbags/ditch/epN /tank/state /tank/command
-   ```
-
-1 エピソードの流れ：`reset_tank.sh`（車両の位置、teleop の指令、**砲塔の角度（0° に戻るまで待つ）**がすべて初期状態に戻る。teleop は更新後に起動し直すこと）→
-`ros2 bag record` を開始 → **壕の手前で、走りながら**砲塔を 90° に回し（`O`）、壕に進入して通過（ハンドルは切らない）→
-通過したら `Space` で止めて、記録を `Ctrl+C` で止める。
-10〜20 エピソード集める。
-
-変換・学習・評価：
-
-```bash
-docker exec -u ubuntu -w /workspace pai_ros2 bash learning/convert.sh ditch --overwrite   # rosbag → LeRobotDataset
-docker exec -u ubuntu -w /workspace pai_ros2 bash learning/train.sh ditch                 # ACT の学習
-```
-
-## 結果（突堤、各 10 試行）
-
-| 方式 | 通過 | 跳ねずに通過 | 所要時間（平均） |
-|---|---|---|---|
-| ルールベース：全開 | 10/10 | 0/10 | 3.8 s |
-| ルールベース：0.5 一定 | 10/10 | 10/10 | 7.2 s |
-| ルールベース：0.25 一定 | 10/10 | 10/10 | 13.7 s |
-| ACT（`n_action_steps=1`） | 10/10 | 0/10 | 3.0 s |
-| **ACT（`n_action_steps=8`）** | 10/10 | **10/10** | **3.1 s** |
-| ACT（`n_action_steps=16`） | 10/10 | 7/10 | 4.1 s |
-
-全開と同じ程度の速さで、跳ねずに通過できた。方策の制御周期はシミュレーション時刻で 13.3 Hz（突堤のデモは RTF≈0.75 の GUI で、実時間のタイムスタンプで記録したため。WORKLOG 参照）。詳細と考察は `WORKLOG.md`、図は `docs/`、全記録は `results/`。
+- 車輪の駆動力に上限がなく、壁（40°）を速度にかかわらず登れてしまうため、「落ちて壁に激突して動けなくなる」は再現できていない。
+- 突堤と壕を 1 本のコースにまとめた通しの学習、本物の履帯（TrackedVehicle プラグイン）、カメラ入力は未実施。
+- リポジトリには、デモの rosbag、データセット、学習済みモデルを含めない（`.gitignore`）。再現するには、上の手順でデモを集めて学習する。
 
 ## 参考
 
@@ -220,15 +220,6 @@ docker exec -u ubuntu -w /workspace pai_ros2 bash learning/train.sh ditch       
 - [matsuolab/pai_training](https://github.com/matsuolab/pai_training)：rosbag から LeRobotDataset への変換と ACT の学習・推論の仕組みを参考にした。
 - [LeRobot](https://github.com/huggingface/lerobot)、ACT（Zhao et al., 2023, https://arxiv.org/abs/2304.13705）
 
-## 結果（壕、各 10 試行）
+## ライセンス
 
-| 方式 | 通過 | 接触せずに通過 | 空中：入る／出る／合計 | 所要時間 |
-|---|---|---|---|---|
-| あなたのデモ（再生） | 10/10 | 10/10 | 0.35／0.48／0.83 s | 5.0 s |
-| ルール：砲塔 90°・0.25 一定 | 10/10 | 10/10 | 0.22／0.04／0.26 s | 13.1 s |
-| ルール：砲塔 90°・全開一定 | 10/10 | 10/10 | 0.52／0.48／1.00 s | 3.6 s |
-| ルール：砲塔 0°（前向き）・0.5 一定 | 10/10 | **0/10** | 0.35／0.25／0.60 s | 6.8 s |
-| ACT（n_action_steps=8） | 10/10 | 10/10 | 0.46／0.51／0.96 s | 3.3 s |
-| ACT（n_action_steps=16） | 10/10 | 10/10 | 0.37／0.48／0.85 s | 3.7 s |
-
-全条件は `results/summary_ditch.md`。ACT は、砲塔を 90° に回す操作を含めて再現でき、デモと同程度の飛びで、約 26% 速く通過した。
+MIT（`LICENSE`）。

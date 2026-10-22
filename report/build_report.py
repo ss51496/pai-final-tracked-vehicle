@@ -1,0 +1,243 @@
+#!/usr/bin/env python3
+"""最終レポートの HTML を生成する（結果の表は results/*.csv から作る）。
+
+使い方:  python3 report/build_report.py > report/report_final.html
+PDF は Chrome の headless で作る:
+  chrome --headless=new --no-pdf-header-footer --print-to-pdf=report.pdf file:///.../report/report_final.html
+"""
+import csv
+import os
+import statistics as st
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def load(name):
+    with open(os.path.join(ROOT, "results", name + ".csv")) as f:
+        return list(csv.DictReader(f))
+
+
+def mean(rows, key):
+    v = [float(r[key]) for r in rows]
+    return st.mean(v) if v else float("nan")
+
+
+def berm_table():
+    spec = [("ルールベース：全開（1.0）一定", "rule_const_1.0", "bad"), ("ルールベース：0.5 一定", "rule_const_0.5", ""),
+            ("ルールベース：0.25 一定", "rule_const_0.25", ""),
+            ("ACT（行動チャンクの実行 1 ステップ）", "policy_act_n1", "bad"), ("ACT（実行 8 ステップ）", "policy_act_n8", "best"),
+            ("ACT（実行 16 ステップ）", "policy_act_n16", "")]
+    out = ['<table><tr><th class="l">方式</th><th>通過</th><th>跳ねずに通過</th><th>最高 z（平均）</th><th>空中（平均）</th><th>所要時間（平均）</th></tr>']
+    for label, f, cls in spec:
+        d = load(f)
+        p = sum(r["reached"] == "True" for r in d)
+        h = sum(r["no_hop_pass"] == "True" for r in d)
+        out.append(f'<tr class="{cls}"><td class="l">{label}</td><td>{p}/{len(d)}</td><td>{h}/{len(d)}</td>'
+                   f'<td>{mean(d, "peak_z"):.2f} m</td><td>{mean(d, "air_sec"):.2f} s</td><td>{mean(d, "time_sec"):.1f} s</td></tr>')
+    out.append("</table>")
+    return "\n".join(out)
+
+
+def ditch_table():
+    spec = [("熟練者のデモ（操作指令を再生）", "ditch_human_replay", "human"),
+            ("ルールベース：砲塔 90°・0.25 一定", "ditch_rule_const_0.25", ""),
+            ("ルールベース：砲塔 90°・0.5 一定", "ditch_rule_const_0.5", ""),
+            ("ルールベース：砲塔 90°・全開一定", "ditch_rule_const_1.0", ""),
+            ("ルールベース：砲塔 0°（前向き）・0.5 一定", "ditch_rule_front_0.5", "bad"),
+            ("ACT（実行 1 ステップ）", "ditch_policy_n1", "bad"), ("ACT（実行 4 ステップ）", "ditch_policy_n4", ""),
+            ("ACT（実行 8 ステップ）", "ditch_policy_n8", ""), ("ACT（実行 16 ステップ）", "ditch_policy_n16", "best")]
+    out = ['<table><tr><th class="l">方式</th><th>通過</th><th>接触せずに通過</th><th>空中：入る</th><th>空中：出る</th><th>空中：合計</th><th>所要時間</th></tr>']
+    for label, f, cls in spec:
+        d = load(f)
+        ok = [r for r in d if r["outcome"] == "passed"]
+        nc = sum(r["no_contact_pass"] == "True" for r in d)
+        if ok:
+            cells = (f'{mean(ok, "air_in_sec"):.2f} s', f'{mean(ok, "air_out_sec"):.2f} s', f'{mean(ok, "air_sec"):.2f} s', f'{mean(ok, "time_sec"):.1f} s')
+        else:
+            cells = ("―",) * 4
+        out.append(f'<tr class="{cls}"><td class="l">{label}</td><td>{len(ok)}/{len(d)}</td><td>{nc}/{len(d)}</td>'
+                   + "".join(f"<td>{c}</td>" for c in cells) + "</tr>")
+    out.append("</table>")
+    return "\n".join(out)
+
+
+def diagram():
+    # 構成図（SVG）。以前のレポートと同じものを使う
+    with open(os.path.join(ROOT, "report", "diagram.svg")) as f:
+        return f.read()
+
+
+HTML = """<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>装軌車両の不整地走行を模倣学習で再現する</title>
+<style>
+  @page { size: A4; margin: 16mm 15mm; }
+  body { font-family: "Yu Gothic UI", "Meiryo", "Noto Sans CJK JP", sans-serif; font-size: 10.2pt; line-height: 1.65; color: #1b1f24; }
+  h1 { font-size: 19pt; margin: 0 0 2mm; line-height: 1.3; }
+  .sub { color: #555; margin-bottom: 5mm; }
+  h2 { font-size: 13.5pt; border-bottom: 2px solid #2f6f4e; padding-bottom: 1mm; margin: 7mm 0 3mm; color: #1f4d36; break-after: avoid; }
+  h3 { font-size: 11pt; margin: 4mm 0 1.5mm; break-after: avoid; }
+  p { margin: 1.6mm 0; }
+  table { border-collapse: collapse; width: 100%; margin: 2mm 0 3mm; font-size: 9.2pt; break-inside: avoid; }
+  th, td { border: 1px solid #b9c2cc; padding: 1.1mm 1.8mm; text-align: center; }
+  th { background: #e8f1ec; }
+  td.l, th.l { text-align: left; }
+  tr.best td { background: #fff7d6; font-weight: bold; }
+  tr.bad td { background: #fdeaea; }
+  tr.human td { background: #eaf1fb; }
+  figure { margin: 3mm 0; break-inside: avoid; }
+  figure img { width: 100%; }
+  figcaption { font-size: 8.8pt; color: #444; margin-top: 1mm; }
+  ul, ol { margin: 1mm 0 1mm 5mm; padding-left: 3mm; } li { margin: 0.8mm 0; }
+  code { background: #eef1f4; padding: 0 1mm; border-radius: 2px; font-size: 9pt; }
+  .small { font-size: 8.6pt; color: #555; }
+  .note { background: #f4f6f8; border-left: 3px solid #8aa; padding: 1.5mm 3mm; margin: 2mm 0; font-size: 9.4pt; }
+</style>
+</head>
+<body>
+
+<h1>装軌車両の不整地走行を模倣学習（ACT）で再現する<br>― 突堤と壕の通過：飛びを抑えつつ、速度を保つ ―</h1>
+<div class="sub">Physical AI 応用編1 最終課題　／　Ignition Gazebo ＋ ROS 2 Humble ＋ LeRobot（ACT）</div>
+
+<h2>1. 概要と目的</h2>
+<p>建設機械、災害対応ロボット、惑星探査ローバーなどの不整地走行ロボットは、地形に応じて速度を切り替える操縦技能を必要とする。
+特に車両の重量が大きいと、段差や溝の縁で車体が宙に浮く（「飛ぶ」）だけで、着地の衝撃が機体の故障の原因になる。
+一方で、衝撃を避けるために<b>ずっとゆっくり走る</b>だけでは、作業の効率や、危険な場所に留まる時間の点で不利になる。
+<b>通過の瞬間は速度を抑えて衝撃を和らげ、それ以外では速度を出す</b>という操縦技能が重要になる。</p>
+<p>本課題では、Ignition Gazebo 上に砲塔付きの<b>装軌車両（多輪スキッドステアで履帯を模擬）</b>を自作し、操縦経験のある人のテレオペから
+<b>ACT（Action Chunking with Transformers）</b>で、この技能を学習させた。地形は次の 2 つである。</p>
+<ul>
+  <li><b>突堤</b>（台形の山）：全開のまま頂上を越えると車体が跳ねる。</li>
+  <li><b>壕</b>（V 字の溝）：入るときと出るときに車体が飛ぶ。さらに、砲塔が前向きのまま進入すると<b>砲身が向こう側の壁に当たって動けなくなる</b>ので、走りながら砲塔を 90° に回す操作も必要になる。</li>
+</ul>
+
+<h3>結果の要約</h3>
+<ul>
+  <li><b>突堤</b>：学習した方策は 10 試行すべてで跳ねずに通過した。所要時間は全開のルールベースと同程度（3.1 秒対 3.8 秒）で、跳ねないルールベース（一定の低速）の 2〜4 倍速かった。</li>
+  <li><b>壕</b>：方策は、砲塔を 90° に回す操作を含めて再現し、10 試行すべてで砲身を接触させずに通過した。飛びは熟練者のデモと同程度（空中の合計 0.85 秒対 0.83 秒）で、<b>デモより約 26% 速く</b>通過した（3.7 秒対 5.0 秒）。</li>
+  <li>行動チャンクの実行ステップ数、データの時間の基準、評価の基準が結果を大きく左右することが分かり、その過程の失敗と対策を第 6 章にまとめた。</li>
+</ul>
+
+<h2>2. システム構成</h2>
+<figure>
+__DIAGRAM__
+<figcaption>図1　システム構成。車両・地形・操縦系・観測系・評価ツールはすべて自作。</figcaption>
+</figure>
+
+<h3>車両モデル（自作・架空のパラメータ）</h3>
+<ul>
+  <li>車体 2.0×1.0×0.4 m、総質量約 445 kg。片側 7 輪（半径 0.15 m）を詰めて配置し、DiffDrive に左右 14 輪の関節をすべて登録して<b>スキッドステア</b>とした。横方向の摩擦を小さくして、その場旋回できるようにした。</li>
+  <li>履帯は見た目用の箱で、衝突判定は車輪が担当する。砲塔は鉛直軸の関節（JointPositionController）で回す。<b>砲身にも衝突判定を付け</b>、壁への接触を再現した。</li>
+  <li>モデルは、形状と質量から慣性を計算する生成スクリプトで作る（14 輪の定義の間違いを防ぐ）。<b>砲身の長さで挙動が変わる</b>ため、突堤用（砲身 1.3 m）と壕用（2.0 m、接触センサー付き）の 2 種類を用意した。</li>
+</ul>
+<h3>操縦系・観測</h3>
+<ul>
+  <li><b>行動</b> <code>[throttle, steering, turret_angle]</code>：アクセル（−1〜1、0.25 刻み）、ハンドル、砲塔角。teleop と方策は同じ <code>/tank/command</code> に配信するので、差し替えるだけで動く。全開は 4 m/s。</li>
+  <li><b>観測</b> <code>[x, z, pitch, v_forward, turret_angle]</code>：真値の位置（OdometryPublisher）、IMU のピッチ角（機首上げが正）、車輪オドメトリの速度、砲塔角。地形の局面（登り・頂上・下り、壕の入口・底・出口）を見分けられる。</li>
+</ul>
+<h3>地形</h3>
+<ul>
+  <li><b>突堤</b>：高さ 1.0 m、斜面 35°、頂上の平らな部分 0.3 m（頂上の縁を鋭くして、全開で越えると跳ねるようにした）。</li>
+  <li><b>壕</b>：上端の幅 4.8 m、深さ 1.0 m、壁 40°。操縦者の要望で、全開（4 m/s）でも飛び越えられず底まで落ちる広さにした。幅を広げると砲身が壁に当たらなくなるため、砲身を車体の長さと同じ 2.0 m にして、前向きなら速度にかかわらず壁に当たるようにした（第 6 章）。</li>
+</ul>
+
+<h2>3. 学習の方法</h2>
+<table>
+  <tr><th class="l"></th><th>突堤</th><th>壕</th></tr>
+  <tr><td class="l">デモ</td><td>操縦経験者のテレオペ 10 エピソード</td><td>同 10 エピソード（砲塔を 0° から始めて、走りながら 90° に回す）</td></tr>
+  <tr><td class="l">データ</td><td>815 フレーム（fps 10）</td><td>725 フレーム（fps 10）</td></tr>
+  <tr><td class="l">時間の基準</td><td>実時間（RTF≈0.75 の GUI で記録）</td><td>シミュレーション時刻（<code>--use-sim-time</code>）</td></tr>
+  <tr><td class="l">学習</td><td>ACT、chunk 16、バッチ 8、5000 ステップ（CPU 約 23 分）</td><td>同（約 30 分）</td></tr>
+  <tr><td class="l">推論</td><td>シミュレーション時刻の 13.3 Hz、行動チャンクを 8 ステップ実行</td><td>シミュレーション時刻 10 Hz、16 ステップ実行</td></tr>
+</table>
+<p>操縦の前後の停止区間は、変換時に切り詰めた（第 6 章）。観測は 5 次元（<code>/tank/state</code>）、行動は 3 次元（<code>/tank/command</code>）で、カメラは使っていない。</p>
+<figure><img src="../docs/loss_berm.png" style="width:49%"><img src="../docs/loss_ditch.png" style="width:49%"><figcaption>図2　学習 loss（縦軸は対数）。左：突堤（約 0.14）、右：壕（約 0.2）。</figcaption></figure>
+
+<h2>4. 結果</h2>
+<h3>4.1 突堤（各 10 試行）</h3>
+<p>車両を初期位置に戻して走らせ、x ≧ 13 m に達するまでを 1 試行とした。「<b>跳ねずに通過</b>」は、通過し、かつ最高の高さ z &lt; 1.70 m、かつ空中時間 &lt; 0.6 秒（IMU の加速度の大きさが 3 m/s² 未満の時間）とした。
+閾値は、熟練者のデモ（最高 z が 1.40〜1.61 m）と全開（約 1.84 m）の間に置いた。所要時間はシミュレーション時刻で測った。</p>
+__BERM_TABLE__
+<p><b>速く走ると跳ね、跳ねないようにすると遅い</b>というトレードオフが、ルールベースの結果にはっきり出ている。ACT（8 ステップ）は、全開と同程度の速さのまま、頂上の手前で減速して跳ねを避けた。</p>
+<figure><img src="../docs/rollout_n8.png"><figcaption>図3　突堤：方策の走行（赤）と熟練者のデモ（灰色）。左：スロットル、中：ピッチ、右：速度（横軸は車両の x）。頂上（x≈7.5 m）で減速し、越えてから加速している。</figcaption></figure>
+<figure><img src="../docs/clip_policy.png"><figcaption>図4　突堤：方策の走行の動画から切り出したコマ。頂上でも跳ね上がらずに越えている。</figcaption></figure>
+<figure><img src="../docs/clip_rule_full.png"><figcaption>図5　比較：全開のままの通過。頂上で車体が大きく跳ね、機首を下げて着地している。</figcaption></figure>
+
+<h3>4.2 壕（各 10 試行）</h3>
+<p>砲塔 0° から始め、x ≧ 12 m に達するまでを 1 試行とした。「<b>接触せずに通過</b>」は、通過し、かつ砲身の接触センサーが 0 件。空中の時間は、壕の中央（x=8.4 m）の手前を「入る」、先を「出る」として分けて測った。
+熟練者のデモは、記録した操作指令をシミュレーション時刻に合わせて再生し、同じ指標で測った（青）。</p>
+__DITCH_TABLE__
+<ul>
+  <li>砲塔が前向きだと、速度にかかわらず砲身が壁に当たる（0/10）。砲塔を 90° に回せば、どの速度でも接触しない。</li>
+  <li><b>ACT（16 ステップ）は、デモと同程度の飛び（0.85 秒対 0.83 秒）で、約 26% 速く通過</b>した（3.7 秒対 5.0 秒）。砲塔を回す操作も 10/10 で再現できた。行動チャンクを続けて実行しないと（1 ステップ）、動けない。</li>
+  <li>ルールベースでは、一定の低速（0.25）は飛びが小さい（0.26 秒）が 13 秒かかり、全開は速い（3.6 秒）が飛びが大きい（1.00 秒）。</li>
+</ul>
+<figure><img src="../docs/ditch_demo2.png"><figcaption>図6　壕のデモ 10 エピソード（橙の帯が壕）。走り出しは全開、壕の手前で 0.5 に緩め、底で上げ、出口の縁の手前で再び緩める操作がそろっている。砲塔は全エピソードで 0° から 90° に回している。</figcaption></figure>
+<figure><img src="../docs/debug_policy_ditch.png"><figcaption>図7　学習データ上の予測（緑）と操縦者の操作（赤の破線）。スロットルの誤差は 0.03〜0.07、砲塔角も走り出してすぐに 90° に回す動きを再現している。</figcaption></figure>
+<figure><img src="../docs/clip_ditch_policy.png"><figcaption>図8　壕：方策の走行の動画から切り出したコマ。砲塔を自ら 90° に回し、壕の縁で減速して通過する。</figcaption></figure>
+<figure><img src="../docs/clip_ditch_front.png"><figcaption>図9　比較：砲塔が前向きのまま進入すると、砲身が向こう側の壁に当たって動けなくなる。</figcaption></figure>
+
+<h3>4.3 「飛ばず、速く」の余地</h3>
+<p>デモ自体に、まだ飛びが残っていた（入る 0.35 秒、出る 0.48 秒）。縁の手前だけを 0.25 に落とし、ほかは全開にするルールベースの速度パターンで調べると、
+<b>出口の縁の手前で 0.25 まで落とすと、出口の飛びがほぼなくなる</b>（0.04〜0.08 秒）。次のとおり、飛びを大きく減らしつつ、低速一定の約 2 倍の速さで通過できる余地がある。</p>
+<table>
+  <tr><th class="l">操作（砲塔 90°）</th><th>空中：入る／出る／合計</th><th>所要時間</th></tr>
+  <tr><td class="l">熟練者のデモ（再生）</td><td>0.35／0.48／0.83 s</td><td>5.0 s</td></tr>
+  <tr><td class="l">0.25 一定</td><td>0.22／0.04／0.26 s</td><td>13.1 s</td></tr>
+  <tr class="best"><td class="l">縁の手前だけ 0.25（入口 x=4.3〜7.0 m、出口 x=8.9〜11.5 m）、他は全開</td><td>0.28／0.04／0.32 s</td><td>7.4 s</td></tr>
+  <tr><td class="l">縁の手前だけ 0.35</td><td>0.44／0.20／0.64 s</td><td>5.9 s</td></tr>
+</table>
+<p>この操作をデモにすれば、方策も「より飛ばず、速く」に近づくと考えられる（今回は時間の都合で未実施。今後の課題）。</p>
+
+<h2>5. 工夫した点</h2>
+<ul>
+  <li><b>タスクの設計</b>：「飛びを抑えつつ速度を保つ」という、実用上の要請を、速度の切り替えと砲塔の操作を含む課題にした。地形（突堤・壕）、砲身の長さ、壕の幅を、操縦者の意見と走行試験で調整した（砲身が壁に当たる幅の範囲を、幅を変えて調べて決めた）。</li>
+  <li><b>操縦系</b>：アクセル＋ハンドル方式で、teleop と方策を同じトピックで差し替えられる。指令が途絶えたら止まるウォッチドッグ、操縦中に「飛び」をリアルタイム表示するモニタ（<code>hop_monitor</code>）を作った。</li>
+  <li><b>評価の仕組み</b>：車両のリセット、砲身・車体の接触センサー、IMU による空中時間、シミュレーション時刻での所要時間を自動で記録する評価ノードを作った。熟練者のデモを同じ指標で測る再生モードも作り、<b>人の水準を基準に比較</b>した。</li>
+  <li><b>再現性</b>：試験は、操縦者の画面のシミュレーションと干渉しない隔離環境（ROS ドメインと Gazebo パーティションを分けた環境）で行い、動画は撮影専用の仮想ディスプレイで自動録画する。条件ごとの結果は、すべて CSV で残してある。</li>
+  <li><b>失敗の記録と原因の分析</b>：結果が悪かった（または不自然だった）場面は、データ・ログ・トピックの値から原因を切り分けて、次章に記録した。</li>
+</ul>
+
+<h2>6. 失敗と考察</h2>
+<ol>
+  <li><b>方策が動き出せない（開始前の停止区間）</b>：学習データ上の予測は良好なのに、実行すると動き出さなかった。各エピソードの先頭には、操縦を始める前の停止区間があり、その間の観測は毎回同じなのに、動き出す時刻は毎回違う。方策には時刻の情報がなく、最頻値の「止まったまま」を出力していた。変換時に、操縦の前後の停止区間を切り詰めて解決した（予測の誤差が約半分に）。</li>
+  <li><b>頂上や縁で減速しない（行動チャンクの実行ステップ数）</b>：毎ステップ、行動チャンクの先頭 1 個だけを実行すると、「少し先で減速する」という計画の手前の部分しか使われず、跳ねずに通過できたのは 0/10（突堤）、動けないのが壕だった。デモの減速位置が約 1 m ばらつくため、同じ状態に「落とす」と「保つ」の 2 つの答えがあることも一因。行動チャンクを 8〜16 ステップ続けて実行すると解決した（再学習は不要）。ただし長すぎる 16 ステップでは突堤で 7/10 に下がった。</li>
+  <li><b>評価結果が実行のたびにばらつく（時間の基準のずれ）</b>：同じ方策で「跳ねずに通過」が 4/10〜10/10 と変わった。方策は実時間の 10 Hz で指令を出すが、シミュレーションの速さ（RTF）は 0.8〜0.98 で揺れる。さらに、デモは GUI 付き（RTF 約 0.75）で記録し、rosbag は実時間でタイムスタンプを付けるため、データの「0.1 秒」はシミュレーション時間の約 0.075 秒だった。制御周期をシミュレーション時刻の 13.3 Hz（= 10 ÷ 0.75）にすると 10/10 で安定した。以後のデモは <code>--use-sim-time</code> で記録している。<b>学習データの時間の基準を、推論時の制御周期と合わせる</b>ことが重要。</li>
+  <li><b>砲塔が初期位置に戻っていない（壕の 1 回目のデモ）</b>：操縦者の指摘で、10 エピソード中 9 つで開始時点の砲塔がすでに 90° だったと分かった。位置のリセットでは砲塔の関節角は戻らず、teleop が配信し続ける古い指令が、リセットの 0° を上書きしていた。teleop のリセット信号と、砲塔が 0° に戻るまで待つ処理を足して、撮り直した。</li>
+  <li><b>壕で「飛び越え」と「砲塔の必要性」を両立させる</b>：当初の寸法では、全開で壕を飛び越えられた。幅を広げると飛び越えられなくなるが、今度は前向きでも砲身が壁に当たらなくなった。壁を急にすると、ゆっくり走る方が登れず、全開が勢いで通過する逆の結果になった。砲身を 2.0 m に長くして、広い壕でも前向きなら壁に当たるようにした。なお、この車両は車輪の駆動力に上限がなく壁を登れてしまうため、「落ちて壁に激突して動けなくなる」は再現できなかった（限界）。</li>
+  <li><b>砲身を長くすると突堤の方策が劣化した</b>：砲身 2.0 m に統一すると、突堤の方策が 10/10 から 5〜6/10 に下がった（砲塔の重さと重心が変わる）。デモの撮り直しを避けるため、突堤用と壕用の 2 種類の車両に分けた。</li>
+  <li><b>評価の基準が人の水準より厳しすぎた</b>：壕の「飛ばずに通過」（空中の合計 0.6 秒未満）は、熟練者のデモ自体が全エピソードで超えていた（0.62〜1.0 秒）。方策が全条件で 0/10 になるのは基準の問題だった。<b>デモを再生して同じ指標で測り、人の水準を基準に比較する</b>形に改めた。</li>
+  <li><b>評価ノードの不具合（リセット中に方策が走る）</b>：リセットの待ち時間を延ばした結果、方策がリセット中に先へ進み、所要時間の平均が 1.6 秒と不自然になった（最高速度で x=12 m に達するには最短でも約 3 秒）。リセット中は方策を止める処理を足して、評価をやり直した。<b>数値が物理的にありえない値になっていないか、結果を見て検算する</b>ことで気づけた。</li>
+  <li><b>開発環境の問題</b>：(a) 操縦者の画面のシミュレーションと、私の試験が同じ ROS トピックを共有して干渉した → 試験を隔離環境にした。(b) 停止スクリプトが操縦者の Gazebo を中途半端に止めて、応答しない状態にした → 強制終了の保険を追加。(c) <code>ros2 topic pub</code> が、受信側の存在しないトピックで待ち続け、リセットが 21 分固まった → <code>-w 0</code> と <code>timeout</code> を付けた。(d) <code>pkill -f</code> が自分自身のコマンド行に一致して途中で終わる → パターンの先頭を [] で囲んだ。</li>
+</ol>
+
+<h3>限界と今後</h3>
+<ul>
+  <li>シミュレーションはほぼ決定的で、毎回同じ初期位置から始めるため、10 試行は独立ではない。初期位置や地形の寸法を変えた汎化の評価は今後の課題。</li>
+  <li>行動チャンクの実行ステップ数は、評価結果を見て選んでおり、評価と調整に同じ環境を使っている。</li>
+  <li>デモには、まだ飛びが残っている。第 4.3 節の「縁の手前で 0.25 に落とす」操作で撮り直せば、さらに飛びを減らせる見込み。</li>
+  <li>突堤と壕を 1 本のコースにまとめた通しの学習、本物の履帯（TrackedVehicle プラグイン）への置き換え、カメラ入力は未実施。</li>
+</ul>
+
+<h2>7. 再現手順と参考</h2>
+<p>コード一式（モデル・地形の生成スクリプト、ROS 2 パッケージ、変換・学習の設定、評価スクリプト、撮影スクリプト）は GitHub のリポジトリにあり、README の手順で再現できる。
+条件ごとの全試行の記録は <code>results/</code>、作業の経緯と考察は <code>WORKLOG.md</code> にある。</p>
+<p class="small">参考：Qiita「gazeboとROS2を連携してロボットを操作する」（N622）— ROS 2 と Gazebo の連携の考え方を参考にした（コードとモデルは自作）。
+matsuolab/pai_training — rosbag から LeRobotDataset への変換と ACT の学習・推論の仕組みを参考にした。
+LeRobot（Hugging Face）。T. Z. Zhao et al., “Learning Fine-Grained Bimanual Manipulation with Low-Cost Hardware”, 2023（ACT）。
+車両のパラメータはすべて架空の値である。</p>
+
+</body>
+</html>
+"""
+
+
+def main():
+    html = HTML.replace("__DIAGRAM__", diagram()).replace("__BERM_TABLE__", berm_table()).replace("__DITCH_TABLE__", ditch_table())
+    print(html)
+
+
+if __name__ == "__main__":
+    main()

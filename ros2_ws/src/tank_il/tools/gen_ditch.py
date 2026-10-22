@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""対戦車壕（台形または V 字の溝）の地形モデルを生成する。
+"""壕（台形または V 字の深い溝）の地形モデルを生成する。
 
 使い方:  python3 tools/gen_ditch.py <出力先ディレクトリ>   （model.sdf と model.config を書く）
 
@@ -76,7 +76,7 @@ def main(out_dir):
   <name>ditch</name>
   <version>1.0</version>
   <sdf version="1.8">model.sdf</sdf>
-  <description>対戦車壕（溝）。壁は車輪式でも登れる斜面</description>
+  <description>壕（深い溝）。壁は車輪式でも登れる斜面</description>
 </model>
 """)
     print({k: round(v, 3) for k, v in info.items()}, file=sys.stderr)

@@ -132,10 +132,11 @@ class Evaluator(Node):
         a = self.args
         self.counting = False
         self.stop()
-        for _ in range(5):                      # リセット中は方策を止める（走り出して先へ進まないように）
-            self.hold_pub.publish(Empty())
-            self.spin_for(0.1)
-        subprocess.run([RESET_SCRIPT], check=True, stdout=subprocess.DEVNULL)
+        if not a.no_reset:                      # 撮影など、呼び出し側がすでにリセット済みなら省く（--no-reset）
+            for _ in range(5):                  # リセット中は方策を止める（走り出して先へ進まないように）
+                self.hold_pub.publish(Empty())
+                self.spin_for(0.1)
+            subprocess.run([RESET_SCRIPT], check=True, stdout=subprocess.DEVNULL)
         self.reset_pub.publish(Empty())         # 方策の行動チャンクを空にして再開する
         self.spin_for(1.0)
         self.state = None
@@ -188,13 +189,15 @@ def main():
     ap.add_argument('--switch-x', type=float, default=None, help='この x を越えたら全開にする（省略時は切り替えない）')
     ap.add_argument('--profile', default='', help="scripted で x ごとの速度を指定する（例 '0:1.0,4.8:0.25,7.2:1.0,9.2:0.25,11.5:1.0'）")
     ap.add_argument('--trials', type=int, default=10)
+    ap.add_argument('--no-reset', action='store_true', help='試行の前に車両をリセットしない（呼び出し側がリセット済みのとき。撮影用）')
+    ap.add_argument('--only', default='', help='--mode replay のとき、再生するエピソード名（例 ep4）。省略時は全部')
     ap.add_argument('--bag-dir', default='/workspace/dataset/rosbags/ditch', help='--mode replay のとき、再生するデモの rosbag の置き場')
     ap.add_argument('--out', default='')
     args, ros_args = ap.parse_known_args()
     rclpy.init(args=ros_args)
     node = Evaluator(args)
     if args.mode == 'replay':
-        node.replay = load_demo_commands(args.bag_dir)
+        node.replay = [e for e in load_demo_commands(args.bag_dir) if not args.only or e[0] == args.only]
         args.trials = len(node.replay)
     label = 'policy' if args.mode == 'policy' else ('replay(demo)' if args.mode == 'replay' else (
         f'scripted(turret={args.turret_deg:.0f}, thr={args.entry_throttle}, switch_x={args.switch_x})'))
