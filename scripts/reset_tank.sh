@@ -22,9 +22,12 @@ run() {
 #    teleop の指令を戻さないと、teleop が配信し続ける古い砲塔角（例：90°）の指令が、
 #    ここで出す 0° を上書きして、砲塔が戻らない。
 #    リセット信号は 3 秒間送る（ros2 topic pub は起動直後のメッセージが受信側に届かないことがあるため）。
-run "ros2 topic pub --times 5 --rate 20 /cmd_vel geometry_msgs/msg/Twist '{}' > /dev/null; \
-     ros2 topic pub --times 15 --rate 5 /tank/teleop_reset std_msgs/msg/Empty '{}' > /dev/null; \
-     ros2 topic pub --times 20 --rate 20 /tank/turret_cmd std_msgs/msg/Float64 '{data: 0.0}' > /dev/null"
+#    注意：ros2 topic pub は、既定では受信側が現れるまで待ち続ける。teleop を起動していない場面（評価、方策の
+#    実行）では /tank/teleop_reset の受信者がいないので、-w 0 で待たないようにし、timeout で時間も制限する
+#    （これを入れ忘れて、評価のリセットが 21 分間固まった）。
+run "timeout 5 ros2 topic pub -w 0 --times 5 --rate 20 /cmd_vel geometry_msgs/msg/Twist '{}' > /dev/null; \
+     timeout 6 ros2 topic pub -w 0 --times 15 --rate 5 /tank/teleop_reset std_msgs/msg/Empty '{}' > /dev/null; \
+     timeout 5 ros2 topic pub -w 0 --times 20 --rate 20 /tank/turret_cmd std_msgs/msg/Float64 '{data: 0.0}' > /dev/null"
 # 2) 位置姿勢を戻す
 run "ign service -s /world/course/set_pose --reqtype ignition.msgs.Pose --reptype ignition.msgs.Boolean \
      --timeout 3000 --req 'name: \"tank\", position: {x: $X, y: $Y, z: $Z}, orientation: {x: 0, y: 0, z: $QZ, w: $QW}'"
