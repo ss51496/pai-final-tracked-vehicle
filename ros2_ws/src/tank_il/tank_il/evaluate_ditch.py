@@ -5,6 +5,8 @@
   ros2 run tank_il evaluate_ditch --mode scripted --turret-deg 0 --entry-throttle 0.25     # 砲塔が前向き（失敗例）
   # 方策（policy_node を別に起動しておく。砲塔の操作も方策が行う）
   ros2 run tank_il evaluate_ditch --mode policy
+  # あなたのデモの操作（rosbag の /tank/command）をシミュレーション時刻に合わせて再生し、同じ指標で測る
+  ros2 run tank_il evaluate_ditch --mode replay --bag-dir /workspace/dataset/rosbags/ditch
 
 1 回の試行: 車両をリセット → 走行 → x が GOAL_X に達する（または TIMEOUT 秒、または 6 秒以上動かない）まで。
 記録: 通過したか、砲身が壁などに接触したか（接触センサーのメッセージ数）、最低の z、所要時間（シミュレーション時刻）。
@@ -36,15 +38,39 @@ AIR_ACC = 3.0          # [m/s^2]
 CONTACT_TOPIC = '/world/course/model/tank/link/turret/sensor/barrel_contact/contact'
 
 
+def load_demo_commands(bag_dir):
+    """bag_dir 以下の各エピソードから /tank/command を読み、(名前, [(開始からの秒, [throttle, steering, turret]), ...]) を返す。
+    先頭の停止区間は切り詰める（学習データの trim_idle と同じ。最初に指令が変わる 0.1 秒前を 0 秒とする）"""
+    import glob
+    import os
+    import rosbag2_py
+    from rclpy.serialization import deserialize_message
+    episodes = []
+    for db in sorted(glob.glob(os.path.join(bag_dir, '*', '*.db3'))):
+        r = rosbag2_py.SequentialReader()
+        r.open(rosbag2_py.StorageOptions(uri=os.path.dirname(db), storage_id='sqlite3'), rosbag2_py.ConverterOptions('', ''))
+        cmds = []
+        while r.has_next():
+            topic, data, t = r.read_next()
+            if topic == '/tank/command':
+                cmds.append((t * 1e-9, list(deserialize_message(data, Float32MultiArray).data)))
+        first = next((i for i, (_, c) in enumerate(cmds) if max(abs(x - y) for x, y in zip(c, cmds[0][1])) > 1e-3), 0)
+        t0 = cmds[max(first - 1, 0)][0]
+        episodes.append((os.path.basename(os.path.dirname(db)), [(t - t0, c) for t, c in cmds[max(first - 1, 0):]]))
+    return episodes
+
+
 class Evaluator(Node):
     def __init__(self, args):
         super().__init__('evaluate_ditch', parameter_overrides=[Parameter('use_sim_time', Parameter.Type.BOOL, True)])
         self.args = args
+        self.replay = []   # --mode replay のときのデモ [(名前, [(秒, 指令)])]
         self.state = None
         self.contacts = 0
         self.counting = False
         self.cmd_pub = self.create_publisher(Float32MultiArray, '/tank/command', 10)
         self.reset_pub = self.create_publisher(Empty, '/tank/policy_reset', 10)
+        self.hold_pub = self.create_publisher(Empty, '/tank/policy_hold', 10)
         self.create_subscription(Float32MultiArray, '/tank/state', lambda m: setattr(self, 'state', list(m.data)), 10)
         self.create_subscription(Contacts, CONTACT_TOPIC, self.on_contact, 10)
         self.air_samples = 0
@@ -81,15 +107,36 @@ class Evaluator(Node):
     def command(self):
         """scripted モードの指令。砲塔は最初から目標角、速度は switch_x を越えたら全開"""
         a = self.args
-        thr = 1.0 if (a.switch_x is not None and self.state[0] >= a.switch_x) else a.entry_throttle
+        if a.profile:
+            # x に応じて速度を決める。例 "0:1.0,4.8:0.25,7.2:1.0,9.2:0.25,11.5:1.0" は
+            # x≥0 で 1.0、x≥4.8 で 0.25、x≥7.2 で 1.0、x≥9.2 で 0.25、x≥11.5 で 1.0
+            segs = sorted((float(x), float(t)) for x, t in (seg.split(':') for seg in a.profile.split(',')))
+            thr = segs[0][1]
+            for x0, t in segs:
+                if self.state[0] >= x0:
+                    thr = t
+        else:
+            thr = 1.0 if (a.switch_x is not None and self.state[0] >= a.switch_x) else a.entry_throttle
         return [thr, 0.0, math.radians(a.turret_deg)]
 
-    def run_trial(self):
+    def replay_command(self, cmds, tau):
+        """開始から tau 秒の時点の指令（直前の指令を保持する）"""
+        cur = cmds[0][1]
+        for t, c in cmds:
+            if t > tau:
+                break
+            cur = c
+        return cur
+
+    def run_trial(self, idx=0):
         a = self.args
         self.counting = False
         self.stop()
+        for _ in range(5):                      # リセット中は方策を止める（走り出して先へ進まないように）
+            self.hold_pub.publish(Empty())
+            self.spin_for(0.1)
         subprocess.run([RESET_SCRIPT], check=True, stdout=subprocess.DEVNULL)
-        self.reset_pub.publish(Empty())
+        self.reset_pub.publish(Empty())         # 方策の行動チャンクを空にして再開する
         self.spin_for(1.0)
         self.state = None
         while self.state is None:
@@ -108,6 +155,8 @@ class Evaluator(Node):
         while self.sim_now() - t0 < TIMEOUT:
             if a.mode == 'scripted':
                 self.cmd_pub.publish(Float32MultiArray(data=self.command()))
+            elif a.mode == 'replay':
+                self.cmd_pub.publish(Float32MultiArray(data=self.replay_command(self.replay[idx][1], self.sim_now() - t0)))
             rclpy.spin_once(self, timeout_sec=0.02)
             s = self.state
             min_z = min(min_z, s[1])
@@ -133,20 +182,25 @@ class Evaluator(Node):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--mode', choices=['scripted', 'policy'], required=True)
+    ap.add_argument('--mode', choices=['scripted', 'policy', 'replay'], required=True)
     ap.add_argument('--turret-deg', type=float, default=90.0)
     ap.add_argument('--entry-throttle', type=float, default=0.25)
     ap.add_argument('--switch-x', type=float, default=None, help='この x を越えたら全開にする（省略時は切り替えない）')
+    ap.add_argument('--profile', default='', help="scripted で x ごとの速度を指定する（例 '0:1.0,4.8:0.25,7.2:1.0,9.2:0.25,11.5:1.0'）")
     ap.add_argument('--trials', type=int, default=10)
+    ap.add_argument('--bag-dir', default='/workspace/dataset/rosbags/ditch', help='--mode replay のとき、再生するデモの rosbag の置き場')
     ap.add_argument('--out', default='')
     args, ros_args = ap.parse_known_args()
     rclpy.init(args=ros_args)
     node = Evaluator(args)
-    label = 'policy' if args.mode == 'policy' else (
-        f'scripted(turret={args.turret_deg:.0f}, thr={args.entry_throttle}, switch_x={args.switch_x})')
+    if args.mode == 'replay':
+        node.replay = load_demo_commands(args.bag_dir)
+        args.trials = len(node.replay)
+    label = 'policy' if args.mode == 'policy' else ('replay(demo)' if args.mode == 'replay' else (
+        f'scripted(turret={args.turret_deg:.0f}, thr={args.entry_throttle}, switch_x={args.switch_x})'))
     rows = []
     for i in range(args.trials):
-        r = node.run_trial()
+        r = node.run_trial(i)
         r['trial'] = i
         rows.append(r)
         print(f"[{label}] trial {i}: {r['outcome']} 接触={r['contact_msgs']} 接触せずに通過={'○' if r['no_contact_pass'] else '×'} 空中={r['air_sec']}s(入{r['air_in_sec']}/出{r['air_out_sec']}) 飛ばずに通過={'○' if r['no_hop_pass'] else '×'} "

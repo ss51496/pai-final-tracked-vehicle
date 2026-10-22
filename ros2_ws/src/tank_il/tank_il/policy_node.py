@@ -45,6 +45,9 @@ class PolicyNode(Node):
         # 評価で車両をリセットするたびに、行動チャンクのキューを空にする
         self.enabled = not wait_reset   # True なら /tank/policy_reset を受けるまで動かない（動画の撮影用）
         self.create_subscription(Empty, '/tank/policy_reset', self.on_reset, 10)
+        # 評価でリセットを行っている間は、/tank/policy_hold で止めておく（/tank/policy_reset で再開する）。
+        # 止めないと、車両が初期位置に戻った直後から走り出し、リセットの間に先へ進んでしまう
+        self.create_subscription(Empty, '/tank/policy_hold', lambda _: setattr(self, 'enabled', False), 10)
         self.pub = self.create_publisher(Float32MultiArray, '/tank/command', 10)
         self.create_timer(1.0 / rate, self.step)
         self.get_logger().info(f'方策を読み込みました: {model_path}')

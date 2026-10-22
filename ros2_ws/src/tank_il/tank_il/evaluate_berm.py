@@ -41,6 +41,7 @@ class Evaluator(Node):
         self.counting = False
         self.cmd_pub = self.create_publisher(Float32MultiArray, '/tank/command', 10)
         self.reset_pub = self.create_publisher(Empty, '/tank/policy_reset', 10)
+        self.hold_pub = self.create_publisher(Empty, '/tank/policy_hold', 10)
         self.create_subscription(Float32MultiArray, '/tank/state', self.on_state, 10)
         self.create_subscription(Imu, '/imu', self.on_imu, 10)
 
@@ -69,8 +70,11 @@ class Evaluator(Node):
     def run_trial(self):
         self.counting = False
         self.stop()
+        for _ in range(5):                      # リセット中は方策を止める（走り出して先へ進まないように）
+            self.hold_pub.publish(Empty())
+            self.spin_for(0.1)
         subprocess.run([RESET_SCRIPT], check=True, stdout=subprocess.DEVNULL)
-        self.reset_pub.publish(Empty())
+        self.reset_pub.publish(Empty())         # 方策の行動チャンクを空にして再開する
         self.spin_for(1.0)
         self.state = None
         while self.state is None:

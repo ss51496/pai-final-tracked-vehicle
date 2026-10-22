@@ -1,0 +1,11 @@
+trial,outcome,contact_msgs,air_sec,air_in_sec,air_out_sec,no_contact_pass,no_hop_pass,min_z,time_sec,final_x,turret_deg
+0,passed,0,0.9,0.4,0.5,True,False,-0.674,4.1,12.06,98
+1,passed,0,1.0,0.34,0.66,True,False,-0.68,4.6,12.01,94
+2,passed,0,0.88,0.34,0.54,True,False,-0.68,5.7,12.11,89
+3,passed,0,0.86,0.34,0.52,True,False,-0.68,5.0,12.07,94
+4,passed,0,0.78,0.42,0.36,True,False,-0.68,4.9,12.08,99
+5,passed,0,0.74,0.3,0.44,True,False,-0.68,5.4,12.08,98
+6,passed,0,0.9,0.34,0.56,True,False,-0.681,5.1,12.05,94
+7,passed,0,0.76,0.34,0.42,True,False,-0.68,5.0,12.01,97
+8,passed,0,0.82,0.34,0.48,True,False,-0.68,4.8,12.12,1
+9,passed,0,0.62,0.32,0.3,True,False,-0.68,5.3,12.03,100

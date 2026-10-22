@@ -219,3 +219,16 @@ docker exec -u ubuntu -w /workspace pai_ros2 bash learning/train.sh ditch       
 - Qiita「gazeboとROS2を連携してロボットを操作する」（N622）：ROS 2 と Gazebo の連携の考え方を参考にした。コードとモデルは自作。
 - [matsuolab/pai_training](https://github.com/matsuolab/pai_training)：rosbag から LeRobotDataset への変換と ACT の学習・推論の仕組みを参考にした。
 - [LeRobot](https://github.com/huggingface/lerobot)、ACT（Zhao et al., 2023, https://arxiv.org/abs/2304.13705）
+
+## 結果（壕、各 10 試行）
+
+| 方式 | 通過 | 接触せずに通過 | 空中：入る／出る／合計 | 所要時間 |
+|---|---|---|---|---|
+| あなたのデモ（再生） | 10/10 | 10/10 | 0.35／0.48／0.83 s | 5.0 s |
+| ルール：砲塔 90°・0.25 一定 | 10/10 | 10/10 | 0.22／0.04／0.26 s | 13.1 s |
+| ルール：砲塔 90°・全開一定 | 10/10 | 10/10 | 0.52／0.48／1.00 s | 3.6 s |
+| ルール：砲塔 0°（前向き）・0.5 一定 | 10/10 | **0/10** | 0.35／0.25／0.60 s | 6.8 s |
+| ACT（n_action_steps=8） | 10/10 | 10/10 | 0.46／0.51／0.96 s | 3.3 s |
+| ACT（n_action_steps=16） | 10/10 | 10/10 | 0.37／0.48／0.85 s | 3.7 s |
+
+全条件は `results/summary_ditch.md`。ACT は、砲塔を 90° に回す操作を含めて再現でき、デモと同程度の飛びで、約 26% 速く通過した。

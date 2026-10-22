@@ -35,7 +35,7 @@ def main():
     policy.eval()
     fps = dataset.fps
 
-    fig, axes = plt.subplots(len(args.episodes), 2, figsize=(13, 3.6 * len(args.episodes)), squeeze=False)
+    fig, axes = plt.subplots(len(args.episodes), 3, figsize=(18, 3.6 * len(args.episodes)), squeeze=False)
     for row, ep in enumerate(args.episodes):
         lo = dataset.episode_data_index["from"][ep].item()
         hi = dataset.episode_data_index["to"][ep].item()
@@ -62,6 +62,13 @@ def main():
         ax.grid(alpha=0.3)
         ax.legend(loc="upper right")
         ax = axes[row, 1]
+        ax.plot(t, np.degrees(gt[:, 2]), "--", color="tab:red", label="GT turret")
+        ax.plot(t, np.degrees(pred[:, 2]), color="tab:green", label="predicted turret")
+        ax.set_title(f"episode {ep}: turret [deg] (MAE {np.degrees(err[2]):.1f} deg)")
+        ax.set_xlabel("time [s]")
+        ax.grid(alpha=0.3)
+        ax.legend(loc="upper right")
+        ax = axes[row, 2]
         ax.plot(t, pitch, color="tab:blue")
         ax.set_title(f"episode {ep}: pitch [deg] (nose up = +)")
         ax.set_xlabel("time [s]")
