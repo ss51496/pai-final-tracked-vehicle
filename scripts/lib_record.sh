@@ -8,7 +8,9 @@ X() { docker exec -u ubuntu -w /workspace -e DISPLAY=$D pai_ros2 bash -lc "sourc
 
 # 撮影用ディスプレイとシミュレーションを起動する（$1=world、$2=GUI 設定のファイル名）。動いているシミュレーションは停止する
 start_sim() {
-  docker exec -d -u ubuntu pai_ros2 bash -lc "[ -e /tmp/.X11-unix/X${D#:} ] || Xvnc $D -geometry 1280x768 -depth 24 -SecurityTypes None -rfbport 5999 > /workspace/logs/xvnc99.log 2>&1"
+  # 起動済みかは、実際に接続できるかで判定する（コンテナの再起動後は、古いソケットとロックだけが残るため）
+  docker exec -d -u ubuntu pai_ros2 bash -lc "DISPLAY=$D xdpyinfo > /dev/null 2>&1 || { rm -f /tmp/.X11-unix/X${D#:} /tmp/.X${D#:}-lock; Xvnc $D -geometry 1280x768 -depth 24 -SecurityTypes None -rfbport 5999 > /workspace/logs/xvnc99.log 2>&1; }"
+  sleep 3
   scripts/kill_sim.sh > /dev/null
   docker exec -d -u ubuntu -w /workspace -e DISPLAY=$D pai_ros2 bash -lc "source /opt/ros/humble/setup.bash && source /workspace/ros2_ws/install/setup.bash && ros2 launch tank_il tank_sim.launch.py world:=$1 video:=true gui_config:=${2:-video_gui.config} > /workspace/logs/video_sim.log 2>&1"
   sleep 25
