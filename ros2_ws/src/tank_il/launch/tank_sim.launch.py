@@ -46,8 +46,9 @@ def build(context):
                   arguments=args, output='screen')
 
     sim_time = {'use_sim_time': True}
+    lc = context.launch_configurations
     driver = Node(package='tank_il', executable='tank_driver', output='screen',
-                  parameters=[sim_time])
+                  parameters=[sim_time, {'v_max': float(lc['v_max']), 'omega_max': float(lc['omega_max'])}])
     state = Node(package='tank_il', executable='state_publisher', output='screen',
                  parameters=[sim_time])
     actions = [gazebo, bridge, driver, state]
@@ -77,5 +78,8 @@ def generate_launch_description():
         DeclareLaunchArgument('video', default_value='false'),
         DeclareLaunchArgument('gui_config', default_value='video_gui.config'),
         DeclareLaunchArgument('camera_xyz', default_value='7.0 -17.0 2.0'),
+        # tank_driver の上限。v2（80 km/h 級）は v_max:=22.22 omega_max:=1.0
+        DeclareLaunchArgument('v_max', default_value='4.0'),
+        DeclareLaunchArgument('omega_max', default_value='1.5'),
         OpaqueFunction(function=build),
     ])

@@ -24,6 +24,7 @@ PROFILES = {
         TURRET_SHAPE="cyl", TURRET_R=0.35, TURRET_H=0.18, TURRET_SIZE=None, TURRET_MASS=60.0, TURRET_X=0.0,
         BARREL_R=0.04, BARREL_LEN=1.3, BARREL_MASS=15.0, BARREL_X0=0.20, BARREL_Z=0.0,
         TURRET_P=500, TURRET_D=100, TURRET_CMD_MAX=2000, TURRET_DAMPING=5,
+        DD_LIMITS=None,
     ),
     # 44 t 級。全長 9.42 m ＝ 車体 7.4 m ＋ 砲の突き出し（砲身 5.28 m のうち車体の前端より前に出る分）約 2.0 m。
     # 全幅 3.24 m ＝ 履帯 0.62 m×2（中心間隔 2.62 m）。全高 2.30 m ＝ 地上高 0.45 + 車体 1.0 + 砲塔 0.85。
@@ -35,6 +36,13 @@ PROFILES = {
         TURRET_SHAPE="box", TURRET_R=None, TURRET_H=0.85, TURRET_SIZE=(3.0, 2.5, 0.85), TURRET_MASS=8500.0, TURRET_X=0.3,
         BARREL_R=0.08, BARREL_LEN=5.28, BARREL_MASS=2200.0, BARREL_X0=0.14, BARREL_Z=0.05,
         TURRET_P=480000, TURRET_D=190000, TURRET_CMD_MAX=3000000, TURRET_DAMPING=5000,
+        # 動力特性（仮定の値。公開情報にないため、44 t 級の車両の一般的な目安として置いた）
+        #   最高速度 80 km/h（前進）、40 km/h（後退）。加速 1.5 m/s²（0→80 km/h に約 15 秒）、減速 3.5 m/s²（80 km/h から約 70 m）。
+        #   旋回は最大 1.0 rad/s（約 57°/s）、角加速度 1.0 rad/s²。
+        DD_LIMITS=dict(max_linear_velocity=22.22, min_linear_velocity=-11.11,
+                       max_linear_acceleration=1.5, min_linear_acceleration=-3.5,
+                       max_angular_velocity=1.0, min_angular_velocity=-1.0,
+                       max_angular_acceleration=1.0, min_angular_acceleration=-1.5),
     ),
 }
 globals().update(PROFILES[PROFILE])
@@ -122,6 +130,7 @@ def main():
     global DEBUG_JOINTS
     if os.environ.get("TANK_DEBUG_JOINTS") == "1":
         DEBUG_JOINTS = "".join(f"\n      <joint_name>wheel_{sd}{i}_joint</joint_name>" for sd in ("l", "r") for i in range(N_WHEELS))
+    dd_limits = "".join(f"\n      <{k}>{v}</{k}>" for k, v in (DD_LIMITS or {}).items())
     xs = [X0 + WHEEL_PITCH * i for i in range(N_WHEELS)]
     wheels = "".join(wheel(s, i, x) for s in ("l", "r") for i, x in enumerate(xs))
     left = "\n    ".join(f"<left_joint>wheel_l{i}_joint</left_joint>" for i in range(N_WHEELS))
@@ -224,7 +233,7 @@ def main():
       <tf_topic>/tank_tf</tf_topic>
       <frame_id>odom</frame_id>
       <child_frame_id>base_link</child_frame_id>
-      <odom_publish_frequency>50</odom_publish_frequency>
+      <odom_publish_frequency>50</odom_publish_frequency>{dd_limits}
     </plugin>
     <plugin filename="ignition-gazebo-joint-position-controller-system" name="ignition::gazebo::systems::JointPositionController">
       <joint_name>turret_joint</joint_name>
