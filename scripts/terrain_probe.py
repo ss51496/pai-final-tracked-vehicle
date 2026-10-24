@@ -21,13 +21,13 @@ class P(Node):
         s.create_subscription(Float32MultiArray, '/tank/state', s.st, 10)
         s.create_subscription(Imu, '/imu', s.imu, 10)
         s.create_subscription(Contacts, CT, s.ct, 10)
-        s.acc = 9.8; s.pitch = 0.0; s.trace = []; s.x = s.z = s.v = 0.0; s.air = 0; s.contacts = 0; s.have = False; s.peak = -9; s.airlog = []
+        s.acc = 9.8; s.shock = 0.0; s.pitch = 0.0; s.trace = []; s.x = s.z = s.v = 0.0; s.air = 0; s.contacts = 0; s.have = False; s.peak = -9; s.airlog = []
     def st(s, m):
         s.x, s.z, s.pitch, s.v, _ = m.data[:5]; s.have = True; s.peak = max(s.peak, s.z)
         s.trace.append((round(s.x, 1), round(s.z, 2), round(s.pitch, 2), round(s.acc, 1)))
     def imu(s, m):
         a = m.linear_acceleration
-        s.acc = math.sqrt(a.x**2 + a.y**2 + a.z**2)
+        s.acc = math.sqrt(a.x**2 + a.y**2 + a.z**2); s.shock = max(s.shock, s.acc)
         if math.sqrt(a.x**2 + a.y**2 + a.z**2) < 3.0:
             s.air += 1; s.airlog.append(round(s.x, 1))
     def ct(s, m):
@@ -41,7 +41,7 @@ while n.now() - t0 < 60 and n.x < goal:
     t = sw_thr if n.x >= sw_x else thr
     n.pub.publish(Float32MultiArray(data=[t, 0.0, turret])); rclpy.spin_once(n, timeout_sec=0.02)
     vmax = max(vmax, n.v)
-print(f'x={n.x:.1f} 最高z={n.peak:.2f} 最高速度={vmax*3.6:.0f}km/h 空中={n.air/50:.2f}s 接触={n.contacts} 時間={n.now()-t0:.1f}s')
+print(f'x={n.x:.1f} 最高z={n.peak:.2f} 最高速度={vmax*3.6:.0f}km/h 空中={n.air/50:.2f}s 最大衝撃={n.shock/9.81:.1f}G 接触={n.contacts} 時間={n.now()-t0:.1f}s')
 import os
 if os.environ.get('TRACE'):
     for r in n.trace[::5]:

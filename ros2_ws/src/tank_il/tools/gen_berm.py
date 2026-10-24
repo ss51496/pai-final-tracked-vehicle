@@ -17,9 +17,9 @@ def _p(name, v1, v2):
     return float(os.environ.get(name, v2 if V2 else v1))
 
 X_START = _p("BERM_X_START", 6.0, 100.0)       # 登り口の x 座標 [m]（車両の初期位置 x=0 から助走する）
-HEIGHT = _p("BERM_HEIGHT", 1.0, 1.8)         # 山の高さ [m]
-SLOPE_DEG = _p("BERM_SLOPE", 35.0, 35.0)     # 斜面の角度 [deg]
-TOP_LEN = _p("BERM_TOP_LEN", 0.3, 0.6)        # 頂上の平らな部分の長さ [m]（小さいほど尖る）
+HEIGHT = _p("BERM_HEIGHT", 1.0, 1.5)         # 山の高さ [m]
+SLOPE_DEG = _p("BERM_SLOPE", 35.0, 20.0)     # 斜面の角度 [deg]
+TOP_LEN = _p("BERM_TOP_LEN", 0.3, 6.0)        # 頂上の平らな部分の長さ [m]（小さいほど尖る）
 CHAMFER_DEG = 17.0   # 根元の面取りの角度 [deg]
 CHAMFER_LEN = _p("BERM_CHAMFER", 0.30, 0.8)   # 根元の面取りの水平長 [m]
 CREST_LEN = _p("BERM_CREST_LEN", 0.0, 3.0)   # 頂上の縁の面取り（水平長 [m]）。長い車体が縁で前のめりに落ちるのを和らげる
