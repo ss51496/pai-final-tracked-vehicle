@@ -28,6 +28,8 @@ from ros_gz_interfaces.msg import Contacts
 from sensor_msgs.msg import Imu
 from std_msgs.msg import Empty, Float32MultiArray
 
+from tank_il.impact_meter import ImpactMeter
+
 GOAL_X = 12.0
 TIMEOUT = 40.0          # [s]（シミュレーション時刻）
 STUCK_SEC = 6.0         # この秒数 x が進まなければ「動けなくなった」とみなす
@@ -77,6 +79,7 @@ class Evaluator(Node):
         self.air_in = 0
         self.air_out = 0
         self.create_subscription(Imu, '/imu', self.on_imu, 10)
+        self.impact = ImpactMeter(self, args.split_x)
 
     def on_contact(self, msg):
         if self.counting and msg.contacts:
@@ -86,7 +89,7 @@ class Evaluator(Node):
         a = msg.linear_acceleration
         if self.counting and math.sqrt(a.x ** 2 + a.y ** 2 + a.z ** 2) < AIR_ACC:
             self.air_samples += 1
-            if self.state is not None and self.state[0] < SPLIT_X:
+            if self.state is not None and self.state[0] < self.args.split_x:
                 self.air_in += 1
             else:
                 self.air_out += 1
@@ -144,6 +147,7 @@ class Evaluator(Node):
             rclpy.spin_once(self, timeout_sec=0.1)
         if a.mode == 'scripted':
             self.spin_for(3.0, [0.0, 0.0, math.radians(a.turret_deg)])   # 動き出す前に砲塔を回す
+        self.impact.reset()
         self.contacts = 0
         self.air_samples = 0
         self.air_in = 0
@@ -153,7 +157,7 @@ class Evaluator(Node):
         min_z = self.state[1]
         last_x, last_move = self.state[0], self.sim_now()
         outcome = 'timeout'
-        while self.sim_now() - t0 < TIMEOUT:
+        while self.sim_now() - t0 < a.timeout:
             if a.mode == 'scripted':
                 self.cmd_pub.publish(Float32MultiArray(data=self.command()))
             elif a.mode == 'replay':
@@ -163,7 +167,7 @@ class Evaluator(Node):
             min_z = min(min_z, s[1])
             if abs(s[0] - last_x) > 0.05:
                 last_x, last_move = s[0], self.sim_now()
-            if s[0] >= GOAL_X:
+            if s[0] >= a.goal_x:
                 outcome = 'passed'
                 break
             if self.sim_now() - last_move > STUCK_SEC:
@@ -176,8 +180,11 @@ class Evaluator(Node):
         self.stop()
         air = self.air_samples / 50.0
         ok = outcome == 'passed' and self.contacts == 0
-        no_hop = ok and air < HOP_AIR_SEC
-        return dict(outcome=outcome, contact_msgs=self.contacts, air_sec=round(air, 2), air_in_sec=round(self.air_in / 50.0, 2), air_out_sec=round(self.air_out / 50.0, 2), no_contact_pass=ok, no_hop_pass=no_hop, min_z=round(min_z, 3),
+        if a.impact_thr > 0:                    # v2：着地衝撃（真値の鉛直速度の変化）で判定する
+            no_hop = ok and self.impact.peak < a.impact_thr
+        else:
+            no_hop = ok and air < HOP_AIR_SEC
+        return dict(impact=round(self.impact.peak, 2), impact_in=round(self.impact.peak_in, 2), impact_out=round(self.impact.peak_out, 2), outcome=outcome, contact_msgs=self.contacts, air_sec=round(air, 2), air_in_sec=round(self.air_in / 50.0, 2), air_out_sec=round(self.air_out / 50.0, 2), no_contact_pass=ok, no_hop_pass=no_hop, min_z=round(min_z, 3),
                     time_sec=round(t_end, 1), final_x=round(final_x, 2), turret_deg=round(turret_deg))
 
 
@@ -192,6 +199,10 @@ def main():
     ap.add_argument('--no-reset', action='store_true', help='試行の前に車両をリセットしない（呼び出し側がリセット済みのとき。撮影用）')
     ap.add_argument('--only', default='', help='--mode replay のとき、再生するエピソード名（例 ep4）。省略時は全部')
     ap.add_argument('--bag-dir', default='/workspace/dataset/rosbags/ditch', help='--mode replay のとき、再生するデモの rosbag の置き場')
+    ap.add_argument('--goal-x', type=float, default=GOAL_X, help='通過とみなす x [m]（既定は v1 の壕）')
+    ap.add_argument('--split-x', type=float, default=SPLIT_X, help='壕の中央の x。手前を「入るとき」、先を「出るとき」に分ける')
+    ap.add_argument('--timeout', type=float, default=TIMEOUT, help='1 試行の上限 [s]（シミュレーション時刻）')
+    ap.add_argument('--impact-thr', type=float, default=0.0, help='0 より大きいと、着地衝撃がこの値 [m/s] 未満を「飛ばずに通過」とする（v2）')
     ap.add_argument('--out', default='')
     args, ros_args = ap.parse_known_args()
     rclpy.init(args=ros_args)
@@ -206,7 +217,7 @@ def main():
         r = node.run_trial(i)
         r['trial'] = i
         rows.append(r)
-        print(f"[{label}] trial {i}: {r['outcome']} 接触={r['contact_msgs']} 接触せずに通過={'○' if r['no_contact_pass'] else '×'} 空中={r['air_sec']}s(入{r['air_in_sec']}/出{r['air_out_sec']}) 飛ばずに通過={'○' if r['no_hop_pass'] else '×'} "
+        print(f"[{label}] trial {i}: {r['outcome']} 衝撃={r['impact']}(入{r['impact_in']}/出{r['impact_out']})m/s 接触={r['contact_msgs']} 接触せずに通過={'○' if r['no_contact_pass'] else '×'} 空中={r['air_sec']}s(入{r['air_in_sec']}/出{r['air_out_sec']}) 飛ばずに通過={'○' if r['no_hop_pass'] else '×'} "
               f"所要={r['time_sec']}s 最低z={r['min_z']} 最終x={r['final_x']} 砲塔={r['turret_deg']}deg", flush=True)
     n_pass = sum(r['outcome'] == 'passed' for r in rows)
     n_ok = sum(r['no_contact_pass'] for r in rows)
@@ -214,7 +225,7 @@ def main():
     print(f"[{label}] {args.trials} 回中: 通過 {n_pass} 回、接触せずに通過 {n_ok} 回、飛ばずに通過 {n_nohop} 回")
     if args.out:
         with open(args.out, 'w', newline='') as f:
-            w = csv.DictWriter(f, fieldnames=['trial', 'outcome', 'contact_msgs', 'air_sec', 'air_in_sec', 'air_out_sec', 'no_contact_pass', 'no_hop_pass', 'min_z',
+            w = csv.DictWriter(f, fieldnames=['trial', 'impact', 'impact_in', 'impact_out', 'outcome', 'contact_msgs', 'air_sec', 'air_in_sec', 'air_out_sec', 'no_contact_pass', 'no_hop_pass', 'min_z',
                                               'time_sec', 'final_x', 'turret_deg'])
             w.writeheader()
             w.writerows(rows)

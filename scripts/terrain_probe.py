@@ -8,6 +8,7 @@ from rclpy.parameter import Parameter
 from sensor_msgs.msg import Imu
 from std_msgs.msg import Float32MultiArray
 from ros_gz_interfaces.msg import Contacts
+from nav_msgs.msg import Odometry
 
 thr, goal = float(sys.argv[1]), float(sys.argv[2])
 turret = float(sys.argv[3]) if len(sys.argv) > 3 else 0.0
@@ -21,6 +22,8 @@ class P(Node):
         s.create_subscription(Float32MultiArray, '/tank/state', s.st, 10)
         s.create_subscription(Imu, '/imu', s.imu, 10)
         s.create_subscription(Contacts, CT, s.ct, 10)
+        s.create_subscription(Odometry, '/odom_gt', s.gt, 50)
+        s.zs = []; s.dv = 0.0   # 衝撃 = 0.1 秒間の鉛直速度の変化の最大値 [m/s]
         s.acc = 9.8; s.shock = 0.0; s.pitch = 0.0; s.trace = []; s.x = s.z = s.v = 0.0; s.air = 0; s.contacts = 0; s.have = False; s.peak = -9; s.airlog = []
     def st(s, m):
         s.x, s.z, s.pitch, s.v, _ = m.data[:5]; s.have = True; s.peak = max(s.peak, s.z)
@@ -32,6 +35,17 @@ class P(Node):
             s.air += 1; s.airlog.append(round(s.x, 1))
     def ct(s, m):
         if m.contacts: s.contacts += 1
+    def gt(s, m):
+        t = m.header.stamp.sec + m.header.stamp.nanosec * 1e-9
+        s.zs.append((t, m.pose.pose.position.z))
+        # 0.05 秒間隔の鉛直速度を 2 つ並べて、0.1 秒間の変化を見る
+        pts = [p for p in s.zs if t - p[0] <= 0.12]
+        s.zs = pts
+        if len(pts) >= 5:
+            h = len(pts) // 2
+            v1 = (pts[h][1] - pts[0][1]) / max(pts[h][0] - pts[0][0], 1e-3)
+            v2 = (pts[-1][1] - pts[h][1]) / max(pts[-1][0] - pts[h][0], 1e-3)
+            s.dv = max(s.dv, v2 - v1)
     def now(s): return s.get_clock().now().nanoseconds * 1e-9
 
 rclpy.init(); n = P()
@@ -41,7 +55,7 @@ while n.now() - t0 < 60 and n.x < goal:
     t = sw_thr if n.x >= sw_x else thr
     n.pub.publish(Float32MultiArray(data=[t, 0.0, turret])); rclpy.spin_once(n, timeout_sec=0.02)
     vmax = max(vmax, n.v)
-print(f'x={n.x:.1f} 最高z={n.peak:.2f} 最高速度={vmax*3.6:.0f}km/h 空中={n.air/50:.2f}s 最大衝撃={n.shock/9.81:.1f}G 接触={n.contacts} 時間={n.now()-t0:.1f}s')
+print(f'x={n.x:.1f} 最高z={n.peak:.2f} 最高速度={vmax*3.6:.0f}km/h 空中={n.air/50:.2f}s 着地衝撃={n.dv:.1f}m/s 接触={n.contacts} 時間={n.now()-t0:.1f}s')
 import os
 if os.environ.get('TRACE'):
     for r in n.trace[::5]:

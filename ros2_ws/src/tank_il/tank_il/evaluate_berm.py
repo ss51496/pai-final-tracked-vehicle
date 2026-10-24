@@ -21,6 +21,8 @@ from rclpy.parameter import Parameter
 from sensor_msgs.msg import Imu
 from std_msgs.msg import Empty, Float32MultiArray
 
+from tank_il.impact_meter import ImpactMeter
+
 GOAL_X = 13.0          # 山（x=6〜9.5 m）を越えた先
 TIMEOUT = 40.0         # [s]
 HOP_Z = 1.70           # [m] これ以上高く跳ね上がったら「跳ねた」
@@ -30,10 +32,12 @@ RESET_SCRIPT = '/workspace/scripts/reset_tank.sh'
 
 
 class Evaluator(Node):
-    def __init__(self, mode, throttle):
+    def __init__(self, mode, throttle, goal_x=GOAL_X, timeout=TIMEOUT, impact_thr=0.0):
         # 所要時間はシミュレーション時刻で測る（他の処理で実時間より遅く動いても公平になる）
         super().__init__('evaluate_berm', parameter_overrides=[Parameter('use_sim_time', Parameter.Type.BOOL, True)])
         self.mode = mode
+        self.goal_x, self.timeout, self.impact_thr = goal_x, timeout, impact_thr
+        self.impact = ImpactMeter(self)
         self.throttle = throttle
         self.state = None
         self.acc = 9.8
@@ -79,17 +83,18 @@ class Evaluator(Node):
         self.state = None
         while self.state is None:
             rclpy.spin_once(self, timeout_sec=0.1)
+        self.impact.reset()
         self.air_samples = 0
         self.counting = True
         t0 = self.sim_now()
         peak_z = self.state[1]
         reached = False
-        while self.sim_now() - t0 < TIMEOUT:
+        while self.sim_now() - t0 < self.timeout:
             if self.mode == 'const':
                 self.cmd_pub.publish(Float32MultiArray(data=[self.throttle, 0.0, 0.0]))
             rclpy.spin_once(self, timeout_sec=0.02)
             peak_z = max(peak_z, self.state[1])
-            if self.state[0] >= GOAL_X:
+            if self.state[0] >= self.goal_x:
                 reached = True
                 break
         t_end = self.sim_now() - t0
@@ -97,8 +102,11 @@ class Evaluator(Node):
         final_x, final_z = self.state[0], self.state[1]
         self.stop()
         air = self.air_samples / 50.0
-        no_hop = reached and peak_z < HOP_Z and air < HOP_AIR_SEC
-        return dict(reached=reached, no_hop_pass=no_hop, peak_z=round(peak_z, 3), air_sec=round(air, 2),
+        if self.impact_thr > 0:                 # v2：着地衝撃（真値の鉛直速度の変化）で判定する
+            no_hop = reached and self.impact.peak < self.impact_thr
+        else:
+            no_hop = reached and peak_z < HOP_Z and air < HOP_AIR_SEC
+        return dict(impact=round(self.impact.peak, 2), reached=reached, no_hop_pass=no_hop, peak_z=round(peak_z, 3), air_sec=round(air, 2),
                     time_sec=round(t_end, 1), final_x=round(final_x, 2), final_z=round(final_z, 3))
 
 
@@ -107,10 +115,13 @@ def main():
     ap.add_argument('--mode', choices=['const', 'policy'], required=True)
     ap.add_argument('--throttle', type=float, default=1.0, help='const のときの一定スロットル')
     ap.add_argument('--trials', type=int, default=10)
+    ap.add_argument('--goal-x', type=float, default=GOAL_X, help='通過とみなす x [m]（既定は v1 の突堤）')
+    ap.add_argument('--timeout', type=float, default=TIMEOUT, help='1 試行の上限 [s]')
+    ap.add_argument('--impact-thr', type=float, default=0.0, help='0 より大きいと、着地衝撃がこの値 [m/s] 未満を「跳ねずに通過」とする（v2）')
     ap.add_argument('--out', default='', help='結果の CSV の保存先')
     args, ros_args = ap.parse_known_args()
     rclpy.init(args=ros_args)
-    node = Evaluator(args.mode, args.throttle)
+    node = Evaluator(args.mode, args.throttle, args.goal_x, args.timeout, args.impact_thr)
     label = f'const({args.throttle})' if args.mode == 'const' else 'policy'
     rows = []
     for i in range(args.trials):
@@ -118,13 +129,13 @@ def main():
         r['trial'] = i
         rows.append(r)
         print(f"[{label}] trial {i}: 通過={'○' if r['reached'] else '×'} 跳ねずに通過={'○' if r['no_hop_pass'] else '×'} "
-              f"最高z={r['peak_z']:.2f}m 空中={r['air_sec']:.2f}s 所要={r['time_sec']}s 最終x={r['final_x']}", flush=True)
+              f"衝撃={r['impact']}m/s 最高z={r['peak_z']:.2f}m 空中={r['air_sec']:.2f}s 所要={r['time_sec']}s 最終x={r['final_x']}", flush=True)
     n_pass = sum(r['reached'] for r in rows)
     n_ok = sum(r['no_hop_pass'] for r in rows)
     print(f"[{label}] {args.trials} 回中: 通過 {n_pass} 回、跳ねずに通過 {n_ok} 回")
     if args.out:
         with open(args.out, 'w', newline='') as f:
-            w = csv.DictWriter(f, fieldnames=['trial', 'reached', 'no_hop_pass', 'peak_z', 'air_sec',
+            w = csv.DictWriter(f, fieldnames=['trial', 'impact', 'reached', 'no_hop_pass', 'peak_z', 'air_sec',
                                               'time_sec', 'final_x', 'final_z'])
             w.writeheader()
             w.writerows(rows)
