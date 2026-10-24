@@ -8,7 +8,7 @@
 
 履帯は見た目用の箱で、接地・駆動は片側 N 輪の車輪で行う。慣性は形状と質量から計算する。
 v1 は架空の小型車両（約 445 kg）。v2 は、公開されている諸元（重量 約 44 t、全長 約 9.4 m、全幅 約 3.2 m、全高 約 2.3 m、
-砲身長 約 5.3 m）に合わせた。公開されていない車体長（約 7.4 m）、転輪の数（片側 6 個）などは、全長から見積もった仮定の値。
+砲身長 約 5.3 m）に合わせた。公開されていない車体長（約 7.4 m）、転輪の数（片側 8 個、接地長 約 6.7 m）などは、全長から見積もった仮定の値。
 """
 import math
 import os
@@ -28,10 +28,10 @@ PROFILES = {
     ),
     # 44 t 級。全長 9.42 m ＝ 車体 7.4 m ＋ 砲の突き出し（砲身 5.28 m のうち車体の前端より前に出る分）約 2.0 m。
     # 全幅 3.24 m ＝ 履帯 0.62 m×2（中心間隔 2.62 m）。全高 2.30 m ＝ 地上高 0.45 + 車体 1.0 + 砲塔 0.85。
-    # 質量 44 t ＝ 車体 28.5 t + 車輪 12×0.4 t + 砲塔 8.5 t + 砲身 2.2 t。
+    # 質量 44 t ＝ 車体 28.5 t + 車輪 16×0.3 t + 砲塔 8.5 t + 砲身 2.2 t。
     "v2": dict(
         CH_L=7.4, CH_W=2.6, CH_H=1.0, CH_MASS=28500.0, CLEARANCE=0.45,
-        N_WHEELS=6, WHEEL_R=0.45, WHEEL_LEN=0.62, WHEEL_MASS=400.0, WHEEL_PITCH=0.85, WHEEL_Y=1.31,
+        N_WHEELS=8, WHEEL_R=0.45, WHEEL_LEN=0.62, WHEEL_MASS=300.0, WHEEL_PITCH=0.95, WHEEL_Y=1.31,
         MU_ROLL=1.2, MU_LATERAL=0.5,
         TURRET_SHAPE="box", TURRET_R=None, TURRET_H=0.85, TURRET_SIZE=(3.0, 2.5, 0.85), TURRET_MASS=8500.0, TURRET_X=0.3,
         BARREL_R=0.08, BARREL_LEN=5.28, BARREL_MASS=2200.0, BARREL_X0=0.14, BARREL_Z=0.05,

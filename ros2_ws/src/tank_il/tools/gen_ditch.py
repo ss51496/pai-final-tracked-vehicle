@@ -19,8 +19,8 @@ def _p(name, v1, v2):
     return float(os.environ.get(name, v2 if V2 else v1))
 
 X_NEAR = _p("DITCH_X_NEAR", 6.0, 100.0)         # 手前の縁の x 座標 [m]（車両の初期位置 x=0 から助走する）
-TOP_W = _p("DITCH_TOP_W", 4.8, 9.0)     # 壕の上端の幅 [m]（環境変数で上書き可）。全開（4 m/s）でも飛び越えられず底まで落ちる広さ
-DEPTH = _p("DITCH_DEPTH", 1.0, 1.5)     # 深さ [m]
+TOP_W = _p("DITCH_TOP_W", 4.8, 11.0)     # 壕の上端の幅 [m]（環境変数で上書き可）。全開（4 m/s）でも飛び越えられず底まで落ちる広さ
+DEPTH = _p("DITCH_DEPTH", 1.0, 2.2)     # 深さ [m]
 SLOPE_DEG = _p("DITCH_SLOPE", 40.0, 40.0)  # 壁の角度 [deg]
 LIP_LEN = _p("DITCH_LIP_LEN", 0.0, 2.5)   # 縁の面取り（水平長 [m]）。長い車体の腹が縁に乗り上げて止まるのを防ぐ
 LIP_DEG = 12.0       # 縁の面取りの角度 [deg]
