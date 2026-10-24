@@ -11,28 +11,40 @@ import math
 import os
 import sys
 
-X_START = 6.0        # 登り口の x 座標 [m]（車両の初期位置 x=0 から助走する）
-HEIGHT = 1.0         # 山の高さ [m]
-SLOPE_DEG = 35.0     # 斜面の角度 [deg]
-TOP_LEN = 0.3        # 頂上の平らな部分の長さ [m]（小さいほど尖る）
+# TERRAIN_PROFILE=v2 は 44 t 級の車両用（寸法を実寸に合わせ、80 km/h 級の助走を確保する）。環境変数で個別に上書きもできる
+V2 = os.environ.get("TERRAIN_PROFILE") == "v2"
+def _p(name, v1, v2):
+    return float(os.environ.get(name, v2 if V2 else v1))
+
+X_START = _p("BERM_X_START", 6.0, 100.0)       # 登り口の x 座標 [m]（車両の初期位置 x=0 から助走する）
+HEIGHT = _p("BERM_HEIGHT", 1.0, 1.8)         # 山の高さ [m]
+SLOPE_DEG = _p("BERM_SLOPE", 35.0, 35.0)     # 斜面の角度 [deg]
+TOP_LEN = _p("BERM_TOP_LEN", 0.3, 0.6)        # 頂上の平らな部分の長さ [m]（小さいほど尖る）
 CHAMFER_DEG = 17.0   # 根元の面取りの角度 [deg]
-CHAMFER_LEN = 0.30   # 根元の面取りの水平長 [m]
-WIDTH = 12.0         # 山の幅（y 方向）[m]
-X_MIN, X_MAX, Z_BOTTOM = -20.0, 40.0, -1.0
+CHAMFER_LEN = _p("BERM_CHAMFER", 0.30, 0.8)   # 根元の面取りの水平長 [m]
+CREST_LEN = _p("BERM_CREST_LEN", 0.0, 3.0)   # 頂上の縁の面取り（水平長 [m]）。長い車体が縁で前のめりに落ちるのを和らげる
+CREST_DEG = 10.0     # 頂上の縁の面取りの角度 [deg]
+WIDTH = _p("TERRAIN_WIDTH", 12.0, 24.0)         # 山の幅（y 方向）[m]
+X_MIN, X_MAX, Z_BOTTOM = -20.0, _p("TERRAIN_X_MAX", 40.0, 260.0), -1.0
 MU = 1.0
 
 
 def profile():
     t = math.tan(math.radians(SLOPE_DEG))
     c = math.tan(math.radians(CHAMFER_DEG)) * CHAMFER_LEN
-    run = (HEIGHT - c) / t                       # 斜面本体の水平長
+    cr = math.tan(math.radians(CREST_DEG)) * CREST_LEN    # 頂上の面取りの高さ
+    run = (HEIGHT - c - cr) / t                  # 斜面本体の水平長
     x1 = X_START                                 # 登り口
     x2 = x1 + CHAMFER_LEN                        # 面取りの終わり
-    x3 = x2 + run                                # 頂上の手前の縁
+    x3a = x2 + run                               # 斜面本体の終わり（面取りの始まり）
+    x3 = x3a + CREST_LEN                         # 頂上の手前の縁
     x4 = x3 + TOP_LEN                            # 頂上の奥の縁
-    x5 = x4 + run                                # 下り斜面の終わり
+    x4a = x4 + CREST_LEN                         # 下り側の面取りの終わり
+    x5 = x4a + run                               # 下り斜面の終わり
     x6 = x5 + CHAMFER_LEN
-    pts = [(X_MIN, 0.0), (x1, 0.0), (x2, c), (x3, HEIGHT), (x4, HEIGHT),
+    up = [(x3a, HEIGHT - cr)] if CREST_LEN > 0 else []
+    down = [(x4a, HEIGHT - cr)] if CREST_LEN > 0 else []
+    pts = [(X_MIN, 0.0), (x1, 0.0), (x2, c)] + up + [(x3, HEIGHT), (x4, HEIGHT)] + down + [
            (x5, c), (x6, 0.0), (X_MAX, 0.0), (X_MAX, Z_BOTTOM), (X_MIN, Z_BOTTOM)]
     return pts, dict(x_up=x1, x_crest=x3, x_top_end=x4, x_down_end=x6)
 

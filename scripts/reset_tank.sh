@@ -3,7 +3,7 @@
 # 使い方: scripts/reset_tank.sh [x y z yaw_rad]    省略時は 0 0 0.35 0
 # world 名は course、モデル名は tank（ign service -s /world/course/set_pose）。
 # ホスト（WSL）からでも、コンテナ内からでも実行できる。
-X=${1:-0}; Y=${2:-0}; Z=${3:-0.35}; YAW=${4:-0}
+X=${1:-0}; Y=${2:-0}; Z=${3:-${TANK_Z:-0.35}}; YAW=${4:-0}   # v2 の車両は TANK_Z=0.98
 QW=$(python3 -c "import math; print(math.cos($YAW/2))")
 QZ=$(python3 -c "import math; print(math.sin($YAW/2))")
 

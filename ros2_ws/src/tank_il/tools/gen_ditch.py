@@ -14,12 +14,16 @@ import math
 import os
 import sys
 
-X_NEAR = 6.0          # 手前の縁の x 座標 [m]（車両の初期位置 x=0 から助走する）
-TOP_W = float(os.environ.get("DITCH_TOP_W", 4.8))     # 壕の上端の幅 [m]（環境変数で上書き可）。全開（4 m/s）でも飛び越えられず底まで落ちる広さ
-DEPTH = float(os.environ.get("DITCH_DEPTH", 1.0))     # 深さ [m]
-SLOPE_DEG = float(os.environ.get("DITCH_SLOPE", 40.0))  # 壁の角度 [deg]
-WIDTH = 12.0          # 壕の長さ（y 方向）[m]
-X_MIN, X_MAX, Z_BOTTOM = -20.0, 40.0, -1.5   # 立体の下面。深さ 1.0 m の壕でも底の下に厚みが残るようにする
+V2 = os.environ.get("TERRAIN_PROFILE") == "v2"    # 44 t 級の車両用（実寸に合わせ、80 km/h 級の助走を確保する）
+def _p(name, v1, v2):
+    return float(os.environ.get(name, v2 if V2 else v1))
+
+X_NEAR = _p("DITCH_X_NEAR", 6.0, 100.0)         # 手前の縁の x 座標 [m]（車両の初期位置 x=0 から助走する）
+TOP_W = _p("DITCH_TOP_W", 4.8, 8.0)     # 壕の上端の幅 [m]（環境変数で上書き可）。全開（4 m/s）でも飛び越えられず底まで落ちる広さ
+DEPTH = _p("DITCH_DEPTH", 1.0, 1.8)     # 深さ [m]
+SLOPE_DEG = _p("DITCH_SLOPE", 40.0, 40.0)  # 壁の角度 [deg]
+WIDTH = _p("TERRAIN_WIDTH", 12.0, 24.0)          # 壕の長さ（y 方向）[m]
+X_MIN, X_MAX, Z_BOTTOM = -20.0, _p("TERRAIN_X_MAX", 40.0, 260.0), _p("DITCH_ZB", -1.5, -2.5)   # 立体の下面。深さ 1.0 m の壕でも底の下に厚みが残るようにする
 MU = 1.0
 
 
