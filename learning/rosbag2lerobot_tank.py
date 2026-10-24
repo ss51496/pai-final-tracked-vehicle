@@ -81,7 +81,7 @@ def main():
     cfg = yaml.safe_load(open(args.config))
     feat = load_module(cfg["features_file"])
     fps = int(cfg["fps"])
-    out_dir = Path(cfg["output_dir"])
+    out_dir = Path(cfg["output_dir"]) if "output_dir" in cfg else Path(feat.root)   # v2 は特徴量定義の root（TANK_STATE_CMD で変わる）
     state_dim = feat.features["observation.state"]["shape"][0]
     action_dim = feat.features["action"]["shape"][0]
 

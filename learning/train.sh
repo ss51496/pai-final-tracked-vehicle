@@ -11,6 +11,10 @@ task=${1:?"使い方: learning/train.sh <berm|ditch>"}
 case $task in berm) cfg=train_config.yaml;; ditch) cfg=train_config_ditch.yaml;;
   v2_berm) cfg=train_config_v2_berm.yaml; export TANK_TASK=berm;; v2_ditch) cfg=train_config_v2_ditch.yaml; export TANK_TASK=ditch;;
   *) echo "タスクは berm, ditch, v2_berm, v2_ditch"; exit 1;; esac
+if [ "${TANK_STATE_CMD:-1}" = "0" ] && [[ $task == v2_* ]]; then   # throttle_cmd を除く比較実験：データセットと出力の名前に _nocmd を付ける
+  sed -E 's/tank_v2_(berm|ditch)/&_nocmd/g' /workspace/learning/$cfg > /workspace/learning/.generated_$cfg
+  cfg=.generated_$cfg
+fi
 ln -sf /workspace/learning/$cfg /workspace/pai_training/configs/train_config.yaml
 cd /workspace/pai_training
 export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0} PATH=$HOME/.pixi/bin:$PATH WANDB_MODE=${WANDB_MODE:-offline}

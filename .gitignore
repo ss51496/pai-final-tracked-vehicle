@@ -10,3 +10,4 @@ __pycache__/
 videos/
 results_tmp/
 report/docx_build/
+learning/.generated_*
