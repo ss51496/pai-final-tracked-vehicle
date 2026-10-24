@@ -224,6 +224,34 @@ ros2 run tank_il evaluate_ditch --mode replay --bag-dir /workspace/dataset/rosba
 
 MIT（`LICENSE`）。
 
+### v2 のテレオペ（練習・デモ収集）
+
+noVNC のターミナルを 2 つ開いて実行する（コンテナ内、`ubuntu` ユーザー）。
+
+```bash
+# ターミナル 1：突堤（画像つきの車両）。GUI のカメラはコースを横から見る位置に移る
+source /opt/ros/humble/setup.bash && source /workspace/ros2_ws/install/setup.bash
+ros2 launch tank_il tank_sim.launch.py world:=berm_v2_cam v_max:=22.22 omega_max:=1.0 extended_state:=true camera_xyz:="105.0 -40.0 6.0"
+```
+
+```bash
+# ターミナル 2：テレオペ
+source /opt/ros/humble/setup.bash && source /workspace/ros2_ws/install/setup.bash
+ros2 run tank_il teleop_tank
+```
+
+```bash
+# ターミナル 3（任意）：通過のたびに、最高速度と着地衝撃（3.0 m/s 未満が目安）を表示する
+source /opt/ros/humble/setup.bash && source /workspace/ros2_ws/install/setup.bash
+ros2 run tank_il hop_monitor --ros-args -p goal_x:=125.0 -p split_x:=109.0 -p impact_thr:=3.0
+```
+
+キー：W / S = スロットル ±0.05（約 4 km/h）、R / F = ±0.25、E = 全開、Space = 停止、A / D = ハンドル、X = ハンドル中立、
+J / L = 砲塔 5°、I / O / U = 砲塔 0° / 右 90° / 左 90°、Q = 終了。画面にスロットル（km/h 換算）と実速度が出る。
+
+リセットは `TANK_Z=0.98 scripts/reset_tank.sh`。加速は 1.5 m/s²（全開まで約 15 秒）、減速は 3.5 m/s² なので、早めに操作する。
+突堤は x=100 m から登る（助走 100 m）。通過の目安は x=125 m。
+
 ### v2（44 t 級の車両）の観測と GPU 学習
 
 - シミュレーションは `extended_state:=true` を付けて起動すると、観測が 8 次元（x, z, pitch, v_forward, turret_angle, vz, roll, throttle_cmd）になる。

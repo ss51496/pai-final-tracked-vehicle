@@ -1,6 +1,7 @@
 """アクセル＋ハンドル方式のキーボードテレオペ。/tank/command を 20Hz で配信し続ける。
 
-  W / S      スロットルを 0.25 上げる / 下げる
+  W / S      スロットルを 0.05 上げる / 下げる（細かい刻み）
+  R / F      スロットルを 0.25 上げる / 下げる（大きい刻み）
   E / Space  全開 / 停止
   D / A      ハンドルを右 / 左へ 0.25 切る
   X          ハンドルを中立に戻す
@@ -18,7 +19,8 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Empty, Float32MultiArray
 
-THROTTLE_STEP = 0.25
+THROTTLE_STEP = 0.05      # W / S（細かい刻み）。v2 は 1.0 が 80 km/h なので 0.05 が約 4 km/h
+THROTTLE_STEP_COARSE = 0.25   # R / F
 STEERING_STEP = 0.25
 TURRET_STEP = math.radians(5.0)
 PUBLISH_HZ = 20.0
@@ -29,6 +31,10 @@ HELP = __doc__
 class TeleopTank(Node):
     def __init__(self):
         super().__init__('teleop_tank')
+        self.declare_parameter('v_max', 22.22)   # スロットル 1.0 のときの速度 [m/s]（表示用。tank_driver の v_max と同じ値にする）
+        self.v_max = self.get_parameter('v_max').value
+        self.speed = 0.0
+        self.create_subscription(Float32MultiArray, '/tank/state', lambda m: setattr(self, 'speed', m.data[3]), 10)
         self.pub = self.create_publisher(Float32MultiArray, '/tank/command', 10)
         self.throttle = 0.0
         self.steering = 0.0
@@ -50,9 +56,13 @@ class TeleopTank(Node):
         """キーを処理する。終了なら False を返す"""
         k = key.lower()
         if k == 'w':
-            self.throttle = min(1.0, self.throttle + THROTTLE_STEP)
+            self.throttle = round(min(1.0, self.throttle + THROTTLE_STEP), 2)
         elif k == 's':
-            self.throttle = max(-1.0, self.throttle - THROTTLE_STEP)
+            self.throttle = round(max(-1.0, self.throttle - THROTTLE_STEP), 2)
+        elif k == 'r':
+            self.throttle = round(min(1.0, self.throttle + THROTTLE_STEP_COARSE), 2)
+        elif k == 'f':
+            self.throttle = round(max(-1.0, self.throttle - THROTTLE_STEP_COARSE), 2)
         elif k == 'e':
             self.throttle = 1.0
         elif k == ' ':

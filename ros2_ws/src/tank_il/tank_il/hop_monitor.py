@@ -16,6 +16,8 @@ from ros_gz_interfaces.msg import Contacts
 from sensor_msgs.msg import Imu
 from std_msgs.msg import Float32MultiArray
 
+from tank_il.impact_meter import ImpactMeter
+
 SPLIT_X = 8.4          # 壕の中央。これより手前を「入るとき」、先を「出るとき」とする
 GOAL_X = 12.0
 AIR_ACC = 3.0          # [m/s^2]
@@ -26,6 +28,15 @@ CONTACT_TOPIC = '/world/course/model/tank/link/turret/sensor/barrel_contact/cont
 class HopMonitor(Node):
     def __init__(self):
         super().__init__('hop_monitor', parameter_overrides=[Parameter('use_sim_time', Parameter.Type.BOOL, True)])
+        # v2 の地形では ros2 run tank_il hop_monitor --ros-args -p goal_x:=135.0 -p split_x:=105.5 -p impact_thr:=3.0
+        # のように指定する（既定は v1 の壕）。impact_thr > 0 のときは、着地衝撃（真値の鉛直速度の変化）で判定する
+        self.declare_parameter('goal_x', GOAL_X)
+        self.declare_parameter('split_x', SPLIT_X)
+        self.declare_parameter('impact_thr', 0.0)
+        self.goal_x = self.get_parameter('goal_x').value
+        self.split_x = self.get_parameter('split_x').value
+        self.impact_thr = self.get_parameter('impact_thr').value
+        self.impact = ImpactMeter(self, self.split_x)
         self.create_subscription(Float32MultiArray, '/tank/state', self.on_state, 10)
         self.create_subscription(Imu, '/imu', self.on_imu, 10)
         self.create_subscription(Contacts, CONTACT_TOPIC, self.on_contact, 10)
@@ -39,7 +50,10 @@ class HopMonitor(Node):
         self.air_in = self.air_out = 0
         self.contacts = 0
         self.peak_z = 0.0
+        self.peak_v = 0.0
         self.x = 0.0
+        if hasattr(self, 'impact'):
+            self.impact.reset()
         self.last_move = 0.0
 
     def now(self):
@@ -59,17 +73,18 @@ class HopMonitor(Node):
                 self.last_move = self.now()
             return
         self.peak_z = max(self.peak_z, z)
+        self.peak_v = max(self.peak_v, v)
         if abs(v) > 0.1:
             self.last_move = self.now()
-        if x >= GOAL_X or (self.now() - self.last_move > 3.0 and self.now() - self.t_start > 3.0):
-            self.finish(x >= GOAL_X)
+        if x >= self.goal_x or (self.now() - self.last_move > 3.0 and self.now() - self.t_start > 3.0):
+            self.finish(x >= self.goal_x)
 
     def on_imu(self, msg):
         if not self.moving or self.done:
             return
         a = msg.linear_acceleration
         if math.sqrt(a.x ** 2 + a.y ** 2 + a.z ** 2) < AIR_ACC:
-            if self.x < SPLIT_X:
+            if self.x < self.split_x:
                 self.air_in += 1
             else:
                 self.air_out += 1
@@ -85,6 +100,12 @@ class HopMonitor(Node):
         mark = lambda s: '飛びなし' if s < GOOD_AIR else '飛んだ'
         verdict = '通過' if passed else f'停止（x={self.x:.1f} m）'
         contact = f'砲身の接触 {self.contacts} 件' if self.contacts else '砲身の接触なし'
+        if self.impact_thr > 0:
+            ok = lambda d: 'OK' if d < self.impact_thr else '飛んだ'
+            self.get_logger().info(
+                f'[{verdict}] 所要 {t:.1f} 秒 ／ 最高速度 {self.peak_v * 3.6:.0f} km/h ／ 着地衝撃：入るとき {self.impact.peak_in:.1f} m/s（{ok(self.impact.peak_in)}）、'
+                f'出るとき {self.impact.peak_out:.1f} m/s（{ok(self.impact.peak_out)}）［基準 {self.impact_thr} m/s 未満］ ／ {contact}')
+            return
         self.get_logger().info(
             f'[{verdict}] 所要 {t:.1f} 秒 ／ 空中：入るとき {ai:.2f} 秒（{mark(ai)}）、出るとき {ao:.2f} 秒（{mark(ao)}） ／ '
             f'最高の高さ z={self.peak_z:.2f} m ／ {contact}')
