@@ -1,0 +1,524 @@
+<?xml version="1.0"?>
+<!-- gen_tank_model.py で生成。直接編集せず、スクリプトのパラメータを変更すること -->
+<sdf version="1.8">
+  <model name="tank">
+    <link name="base_link">
+      <inertial>
+        <pose>0 0 0 0 0 0</pose>
+        <mass>28500.0</mass>
+        <inertia><ixx>18430.00000</ixx><iyy>132430.00000</iyy><izz>146110.00000</izz><ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia>
+      </inertial>
+      <collision name="hull_collision">
+        <geometry><box><size>7.4 2.6 1.0</size></box></geometry>
+      </collision>
+      <visual name="hull_visual">
+        <geometry><box><size>7.4 2.6 1.0</size></box></geometry>
+        <material><ambient>0.3 0.38 0.22 1</ambient><diffuse>0.3 0.38 0.22 1</diffuse></material>
+      </visual>
+      <!-- 履帯（見た目のみ。衝突判定は車輪が担当） -->
+      <visual name="track_left">
+        <pose>0 1.310 -0.500 0 0 0</pose>
+        <geometry><box><size>7.600 0.640 0.920</size></box></geometry>
+        <material><ambient>0.1 0.1 0.1 1</ambient><diffuse>0.1 0.1 0.1 1</diffuse></material>
+      </visual>
+      <visual name="track_right">
+        <pose>0 -1.310 -0.500 0 0 0</pose>
+        <geometry><box><size>7.600 0.640 0.920</size></box></geometry>
+        <material><ambient>0.1 0.1 0.1 1</ambient><diffuse>0.1 0.1 0.1 1</diffuse></material>
+      </visual>
+      <!-- 車体が壁などに接触（激突）したかを検出する（砲身の接触センサーとは別） -->
+      <sensor name="hull_contact" type="contact">
+        <always_on>1</always_on>
+        <update_rate>50</update_rate>
+        <contact><collision>hull_collision</collision></contact>
+      </sensor>
+      <!-- 前方カメラ：車体の前端の上面から、やや下向きに前を見る（地形の縁や斜面を見せる） -->
+      <sensor name="front_camera" type="camera">
+        <pose>3.40 0 0.65 0 0.20 0</pose>
+        <always_on>1</always_on>
+        <update_rate>10</update_rate>
+        <topic>/camera/image</topic>
+        <camera>
+          <horizontal_fov>1.396</horizontal_fov>
+          <image><width>160</width><height>120</height><format>R8G8B8</format></image>
+          <clip><near>0.1</near><far>200</far></clip>
+        </camera>
+      </sensor>
+      <sensor name="imu_sensor" type="imu">
+        <always_on>1</always_on>
+        <update_rate>50</update_rate>
+        <topic>/imu</topic>
+        <imu>
+          <angular_velocity><x><noise type="none"/></x><y><noise type="none"/></y><z><noise type="none"/></z></angular_velocity>
+          <linear_acceleration><x><noise type="none"/></x><y><noise type="none"/></y><z><noise type="none"/></z></linear_acceleration>
+        </imu>
+      </sensor>
+    </link>
+
+    <link name="wheel_l0">
+      <pose>-3.325 1.310 -0.500 -1.57080 0 0</pose>
+      <inertial>
+        <pose>0 0 0 0 0 0</pose>
+        <mass>300.0</mass>
+        <inertia><ixx>24.79750</ixx><iyy>24.79750</iyy><izz>30.37500</izz><ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia>
+      </inertial>
+      <collision name="collision">
+        <geometry><cylinder><radius>0.45</radius><length>0.62</length></cylinder></geometry>
+        <surface><friction><ode>
+          <mu>0.5</mu><mu2>1.2</mu2><fdir1>0 0 1</fdir1>
+        </ode></friction></surface>
+      </collision>
+      <visual name="visual">
+        <geometry><cylinder><radius>0.45</radius><length>0.62</length></cylinder></geometry>
+        <material><ambient>0.15 0.15 0.15 1</ambient><diffuse>0.15 0.15 0.15 1</diffuse></material>
+      </visual>
+    </link>
+    <joint name="wheel_l0_joint" type="revolute">
+      <parent>base_link</parent>
+      <child>wheel_l0</child>
+      <axis><xyz>0 0 1</xyz><limit><lower>-1e16</lower><upper>1e16</upper></limit></axis>
+    </joint>
+    <link name="wheel_l1">
+      <pose>-2.375 1.310 -0.500 -1.57080 0 0</pose>
+      <inertial>
+        <pose>0 0 0 0 0 0</pose>
+        <mass>300.0</mass>
+        <inertia><ixx>24.79750</ixx><iyy>24.79750</iyy><izz>30.37500</izz><ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia>
+      </inertial>
+      <collision name="collision">
+        <geometry><cylinder><radius>0.45</radius><length>0.62</length></cylinder></geometry>
+        <surface><friction><ode>
+          <mu>0.5</mu><mu2>1.2</mu2><fdir1>0 0 1</fdir1>
+        </ode></friction></surface>
+      </collision>
+      <visual name="visual">
+        <geometry><cylinder><radius>0.45</radius><length>0.62</length></cylinder></geometry>
+        <material><ambient>0.15 0.15 0.15 1</ambient><diffuse>0.15 0.15 0.15 1</diffuse></material>
+      </visual>
+    </link>
+    <joint name="wheel_l1_joint" type="revolute">
+      <parent>base_link</parent>
+      <child>wheel_l1</child>
+      <axis><xyz>0 0 1</xyz><limit><lower>-1e16</lower><upper>1e16</upper></limit></axis>
+    </joint>
+    <link name="wheel_l2">
+      <pose>-1.425 1.310 -0.500 -1.57080 0 0</pose>
+      <inertial>
+        <pose>0 0 0 0 0 0</pose>
+        <mass>300.0</mass>
+        <inertia><ixx>24.79750</ixx><iyy>24.79750</iyy><izz>30.37500</izz><ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia>
+      </inertial>
+      <collision name="collision">
+        <geometry><cylinder><radius>0.45</radius><length>0.62</length></cylinder></geometry>
+        <surface><friction><ode>
+          <mu>0.5</mu><mu2>1.2</mu2><fdir1>0 0 1</fdir1>
+        </ode></friction></surface>
+      </collision>
+      <visual name="visual">
+        <geometry><cylinder><radius>0.45</radius><length>0.62</length></cylinder></geometry>
+        <material><ambient>0.15 0.15 0.15 1</ambient><diffuse>0.15 0.15 0.15 1</diffuse></material>
+      </visual>
+    </link>
+    <joint name="wheel_l2_joint" type="revolute">
+      <parent>base_link</parent>
+      <child>wheel_l2</child>
+      <axis><xyz>0 0 1</xyz><limit><lower>-1e16</lower><upper>1e16</upper></limit></axis>
+    </joint>
+    <link name="wheel_l3">
+      <pose>-0.475 1.310 -0.500 -1.57080 0 0</pose>
+      <inertial>
+        <pose>0 0 0 0 0 0</pose>
+        <mass>300.0</mass>
+        <inertia><ixx>24.79750</ixx><iyy>24.79750</iyy><izz>30.37500</izz><ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia>
+      </inertial>
+      <collision name="collision">
+        <geometry><cylinder><radius>0.45</radius><length>0.62</length></cylinder></geometry>
+        <surface><friction><ode>
+          <mu>0.5</mu><mu2>1.2</mu2><fdir1>0 0 1</fdir1>
+        </ode></friction></surface>
+      </collision>
+      <visual name="visual">
+        <geometry><cylinder><radius>0.45</radius><length>0.62</length></cylinder></geometry>
+        <material><ambient>0.15 0.15 0.15 1</ambient><diffuse>0.15 0.15 0.15 1</diffuse></material>
+      </visual>
+    </link>
+    <joint name="wheel_l3_joint" type="revolute">
+      <parent>base_link</parent>
+      <child>wheel_l3</child>
+      <axis><xyz>0 0 1</xyz><limit><lower>-1e16</lower><upper>1e16</upper></limit></axis>
+    </joint>
+    <link name="wheel_l4">
+      <pose>0.475 1.310 -0.500 -1.57080 0 0</pose>
+      <inertial>
+        <pose>0 0 0 0 0 0</pose>
+        <mass>300.0</mass>
+        <inertia><ixx>24.79750</ixx><iyy>24.79750</iyy><izz>30.37500</izz><ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia>
+      </inertial>
+      <collision name="collision">
+        <geometry><cylinder><radius>0.45</radius><length>0.62</length></cylinder></geometry>
+        <surface><friction><ode>
+          <mu>0.5</mu><mu2>1.2</mu2><fdir1>0 0 1</fdir1>
+        </ode></friction></surface>
+      </collision>
+      <visual name="visual">
+        <geometry><cylinder><radius>0.45</radius><length>0.62</length></cylinder></geometry>
+        <material><ambient>0.15 0.15 0.15 1</ambient><diffuse>0.15 0.15 0.15 1</diffuse></material>
+      </visual>
+    </link>
+    <joint name="wheel_l4_joint" type="revolute">
+      <parent>base_link</parent>
+      <child>wheel_l4</child>
+      <axis><xyz>0 0 1</xyz><limit><lower>-1e16</lower><upper>1e16</upper></limit></axis>
+    </joint>
+    <link name="wheel_l5">
+      <pose>1.425 1.310 -0.500 -1.57080 0 0</pose>
+      <inertial>
+        <pose>0 0 0 0 0 0</pose>
+        <mass>300.0</mass>
+        <inertia><ixx>24.79750</ixx><iyy>24.79750</iyy><izz>30.37500</izz><ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia>
+      </inertial>
+      <collision name="collision">
+        <geometry><cylinder><radius>0.45</radius><length>0.62</length></cylinder></geometry>
+        <surface><friction><ode>
+          <mu>0.5</mu><mu2>1.2</mu2><fdir1>0 0 1</fdir1>
+        </ode></friction></surface>
+      </collision>
+      <visual name="visual">
+        <geometry><cylinder><radius>0.45</radius><length>0.62</length></cylinder></geometry>
+        <material><ambient>0.15 0.15 0.15 1</ambient><diffuse>0.15 0.15 0.15 1</diffuse></material>
+      </visual>
+    </link>
+    <joint name="wheel_l5_joint" type="revolute">
+      <parent>base_link</parent>
+      <child>wheel_l5</child>
+      <axis><xyz>0 0 1</xyz><limit><lower>-1e16</lower><upper>1e16</upper></limit></axis>
+    </joint>
+    <link name="wheel_l6">
+      <pose>2.375 1.310 -0.500 -1.57080 0 0</pose>
+      <inertial>
+        <pose>0 0 0 0 0 0</pose>
+        <mass>300.0</mass>
+        <inertia><ixx>24.79750</ixx><iyy>24.79750</iyy><izz>30.37500</izz><ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia>
+      </inertial>
+      <collision name="collision">
+        <geometry><cylinder><radius>0.45</radius><length>0.62</length></cylinder></geometry>
+        <surface><friction><ode>
+          <mu>0.5</mu><mu2>1.2</mu2><fdir1>0 0 1</fdir1>
+        </ode></friction></surface>
+      </collision>
+      <visual name="visual">
+        <geometry><cylinder><radius>0.45</radius><length>0.62</length></cylinder></geometry>
+        <material><ambient>0.15 0.15 0.15 1</ambient><diffuse>0.15 0.15 0.15 1</diffuse></material>
+      </visual>
+    </link>
+    <joint name="wheel_l6_joint" type="revolute">
+      <parent>base_link</parent>
+      <child>wheel_l6</child>
+      <axis><xyz>0 0 1</xyz><limit><lower>-1e16</lower><upper>1e16</upper></limit></axis>
+    </joint>
+    <link name="wheel_l7">
+      <pose>3.325 1.310 -0.500 -1.57080 0 0</pose>
+      <inertial>
+        <pose>0 0 0 0 0 0</pose>
+        <mass>300.0</mass>
+        <inertia><ixx>24.79750</ixx><iyy>24.79750</iyy><izz>30.37500</izz><ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia>
+      </inertial>
+      <collision name="collision">
+        <geometry><cylinder><radius>0.45</radius><length>0.62</length></cylinder></geometry>
+        <surface><friction><ode>
+          <mu>0.5</mu><mu2>1.2</mu2><fdir1>0 0 1</fdir1>
+        </ode></friction></surface>
+      </collision>
+      <visual name="visual">
+        <geometry><cylinder><radius>0.45</radius><length>0.62</length></cylinder></geometry>
+        <material><ambient>0.15 0.15 0.15 1</ambient><diffuse>0.15 0.15 0.15 1</diffuse></material>
+      </visual>
+    </link>
+    <joint name="wheel_l7_joint" type="revolute">
+      <parent>base_link</parent>
+      <child>wheel_l7</child>
+      <axis><xyz>0 0 1</xyz><limit><lower>-1e16</lower><upper>1e16</upper></limit></axis>
+    </joint>
+    <link name="wheel_r0">
+      <pose>-3.325 -1.310 -0.500 -1.57080 0 0</pose>
+      <inertial>
+        <pose>0 0 0 0 0 0</pose>
+        <mass>300.0</mass>
+        <inertia><ixx>24.79750</ixx><iyy>24.79750</iyy><izz>30.37500</izz><ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia>
+      </inertial>
+      <collision name="collision">
+        <geometry><cylinder><radius>0.45</radius><length>0.62</length></cylinder></geometry>
+        <surface><friction><ode>
+          <mu>0.5</mu><mu2>1.2</mu2><fdir1>0 0 1</fdir1>
+        </ode></friction></surface>
+      </collision>
+      <visual name="visual">
+        <geometry><cylinder><radius>0.45</radius><length>0.62</length></cylinder></geometry>
+        <material><ambient>0.15 0.15 0.15 1</ambient><diffuse>0.15 0.15 0.15 1</diffuse></material>
+      </visual>
+    </link>
+    <joint name="wheel_r0_joint" type="revolute">
+      <parent>base_link</parent>
+      <child>wheel_r0</child>
+      <axis><xyz>0 0 1</xyz><limit><lower>-1e16</lower><upper>1e16</upper></limit></axis>
+    </joint>
+    <link name="wheel_r1">
+      <pose>-2.375 -1.310 -0.500 -1.57080 0 0</pose>
+      <inertial>
+        <pose>0 0 0 0 0 0</pose>
+        <mass>300.0</mass>
+        <inertia><ixx>24.79750</ixx><iyy>24.79750</iyy><izz>30.37500</izz><ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia>
+      </inertial>
+      <collision name="collision">
+        <geometry><cylinder><radius>0.45</radius><length>0.62</length></cylinder></geometry>
+        <surface><friction><ode>
+          <mu>0.5</mu><mu2>1.2</mu2><fdir1>0 0 1</fdir1>
+        </ode></friction></surface>
+      </collision>
+      <visual name="visual">
+        <geometry><cylinder><radius>0.45</radius><length>0.62</length></cylinder></geometry>
+        <material><ambient>0.15 0.15 0.15 1</ambient><diffuse>0.15 0.15 0.15 1</diffuse></material>
+      </visual>
+    </link>
+    <joint name="wheel_r1_joint" type="revolute">
+      <parent>base_link</parent>
+      <child>wheel_r1</child>
+      <axis><xyz>0 0 1</xyz><limit><lower>-1e16</lower><upper>1e16</upper></limit></axis>
+    </joint>
+    <link name="wheel_r2">
+      <pose>-1.425 -1.310 -0.500 -1.57080 0 0</pose>
+      <inertial>
+        <pose>0 0 0 0 0 0</pose>
+        <mass>300.0</mass>
+        <inertia><ixx>24.79750</ixx><iyy>24.79750</iyy><izz>30.37500</izz><ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia>
+      </inertial>
+      <collision name="collision">
+        <geometry><cylinder><radius>0.45</radius><length>0.62</length></cylinder></geometry>
+        <surface><friction><ode>
+          <mu>0.5</mu><mu2>1.2</mu2><fdir1>0 0 1</fdir1>
+        </ode></friction></surface>
+      </collision>
+      <visual name="visual">
+        <geometry><cylinder><radius>0.45</radius><length>0.62</length></cylinder></geometry>
+        <material><ambient>0.15 0.15 0.15 1</ambient><diffuse>0.15 0.15 0.15 1</diffuse></material>
+      </visual>
+    </link>
+    <joint name="wheel_r2_joint" type="revolute">
+      <parent>base_link</parent>
+      <child>wheel_r2</child>
+      <axis><xyz>0 0 1</xyz><limit><lower>-1e16</lower><upper>1e16</upper></limit></axis>
+    </joint>
+    <link name="wheel_r3">
+      <pose>-0.475 -1.310 -0.500 -1.57080 0 0</pose>
+      <inertial>
+        <pose>0 0 0 0 0 0</pose>
+        <mass>300.0</mass>
+        <inertia><ixx>24.79750</ixx><iyy>24.79750</iyy><izz>30.37500</izz><ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia>
+      </inertial>
+      <collision name="collision">
+        <geometry><cylinder><radius>0.45</radius><length>0.62</length></cylinder></geometry>
+        <surface><friction><ode>
+          <mu>0.5</mu><mu2>1.2</mu2><fdir1>0 0 1</fdir1>
+        </ode></friction></surface>
+      </collision>
+      <visual name="visual">
+        <geometry><cylinder><radius>0.45</radius><length>0.62</length></cylinder></geometry>
+        <material><ambient>0.15 0.15 0.15 1</ambient><diffuse>0.15 0.15 0.15 1</diffuse></material>
+      </visual>
+    </link>
+    <joint name="wheel_r3_joint" type="revolute">
+      <parent>base_link</parent>
+      <child>wheel_r3</child>
+      <axis><xyz>0 0 1</xyz><limit><lower>-1e16</lower><upper>1e16</upper></limit></axis>
+    </joint>
+    <link name="wheel_r4">
+      <pose>0.475 -1.310 -0.500 -1.57080 0 0</pose>
+      <inertial>
+        <pose>0 0 0 0 0 0</pose>
+        <mass>300.0</mass>
+        <inertia><ixx>24.79750</ixx><iyy>24.79750</iyy><izz>30.37500</izz><ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia>
+      </inertial>
+      <collision name="collision">
+        <geometry><cylinder><radius>0.45</radius><length>0.62</length></cylinder></geometry>
+        <surface><friction><ode>
+          <mu>0.5</mu><mu2>1.2</mu2><fdir1>0 0 1</fdir1>
+        </ode></friction></surface>
+      </collision>
+      <visual name="visual">
+        <geometry><cylinder><radius>0.45</radius><length>0.62</length></cylinder></geometry>
+        <material><ambient>0.15 0.15 0.15 1</ambient><diffuse>0.15 0.15 0.15 1</diffuse></material>
+      </visual>
+    </link>
+    <joint name="wheel_r4_joint" type="revolute">
+      <parent>base_link</parent>
+      <child>wheel_r4</child>
+      <axis><xyz>0 0 1</xyz><limit><lower>-1e16</lower><upper>1e16</upper></limit></axis>
+    </joint>
+    <link name="wheel_r5">
+      <pose>1.425 -1.310 -0.500 -1.57080 0 0</pose>
+      <inertial>
+        <pose>0 0 0 0 0 0</pose>
+        <mass>300.0</mass>
+        <inertia><ixx>24.79750</ixx><iyy>24.79750</iyy><izz>30.37500</izz><ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia>
+      </inertial>
+      <collision name="collision">
+        <geometry><cylinder><radius>0.45</radius><length>0.62</length></cylinder></geometry>
+        <surface><friction><ode>
+          <mu>0.5</mu><mu2>1.2</mu2><fdir1>0 0 1</fdir1>
+        </ode></friction></surface>
+      </collision>
+      <visual name="visual">
+        <geometry><cylinder><radius>0.45</radius><length>0.62</length></cylinder></geometry>
+        <material><ambient>0.15 0.15 0.15 1</ambient><diffuse>0.15 0.15 0.15 1</diffuse></material>
+      </visual>
+    </link>
+    <joint name="wheel_r5_joint" type="revolute">
+      <parent>base_link</parent>
+      <child>wheel_r5</child>
+      <axis><xyz>0 0 1</xyz><limit><lower>-1e16</lower><upper>1e16</upper></limit></axis>
+    </joint>
+    <link name="wheel_r6">
+      <pose>2.375 -1.310 -0.500 -1.57080 0 0</pose>
+      <inertial>
+        <pose>0 0 0 0 0 0</pose>
+        <mass>300.0</mass>
+        <inertia><ixx>24.79750</ixx><iyy>24.79750</iyy><izz>30.37500</izz><ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia>
+      </inertial>
+      <collision name="collision">
+        <geometry><cylinder><radius>0.45</radius><length>0.62</length></cylinder></geometry>
+        <surface><friction><ode>
+          <mu>0.5</mu><mu2>1.2</mu2><fdir1>0 0 1</fdir1>
+        </ode></friction></surface>
+      </collision>
+      <visual name="visual">
+        <geometry><cylinder><radius>0.45</radius><length>0.62</length></cylinder></geometry>
+        <material><ambient>0.15 0.15 0.15 1</ambient><diffuse>0.15 0.15 0.15 1</diffuse></material>
+      </visual>
+    </link>
+    <joint name="wheel_r6_joint" type="revolute">
+      <parent>base_link</parent>
+      <child>wheel_r6</child>
+      <axis><xyz>0 0 1</xyz><limit><lower>-1e16</lower><upper>1e16</upper></limit></axis>
+    </joint>
+    <link name="wheel_r7">
+      <pose>3.325 -1.310 -0.500 -1.57080 0 0</pose>
+      <inertial>
+        <pose>0 0 0 0 0 0</pose>
+        <mass>300.0</mass>
+        <inertia><ixx>24.79750</ixx><iyy>24.79750</iyy><izz>30.37500</izz><ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia>
+      </inertial>
+      <collision name="collision">
+        <geometry><cylinder><radius>0.45</radius><length>0.62</length></cylinder></geometry>
+        <surface><friction><ode>
+          <mu>0.5</mu><mu2>1.2</mu2><fdir1>0 0 1</fdir1>
+        </ode></friction></surface>
+      </collision>
+      <visual name="visual">
+        <geometry><cylinder><radius>0.45</radius><length>0.62</length></cylinder></geometry>
+        <material><ambient>0.15 0.15 0.15 1</ambient><diffuse>0.15 0.15 0.15 1</diffuse></material>
+      </visual>
+    </link>
+    <joint name="wheel_r7_joint" type="revolute">
+      <parent>base_link</parent>
+      <child>wheel_r7</child>
+      <axis><xyz>0 0 1</xyz><limit><lower>-1e16</lower><upper>1e16</upper></limit></axis>
+    </joint>
+    <link name="turret">
+      <pose>0.3 0 0.925 0 0 0</pose>
+      <inertial>
+        <pose>0.5716 0 0 0 0 0</pose>
+        <mass>10700.0</mass>
+        <inertia><ixx>4945.89417</ixx><iyy>25507.97382</iyy><izz>29423.28632</izz><ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia>
+      </inertial>
+      <collision name="turret_collision">
+        <geometry><box><size>3.0 2.5 0.85</size></box></geometry>
+      </collision>
+      <visual name="turret_visual">
+        <geometry><box><size>3.0 2.5 0.85</size></box></geometry>
+        <material><ambient>0.35 0.43 0.25 1</ambient><diffuse>0.35 0.43 0.25 1</diffuse></material>
+      </visual>
+      <!-- 砲身: 壁との接触を再現するため衝突判定を付ける -->
+      <collision name="barrel_collision">
+        <pose>2.780 0 0.05 0 1.57080 0</pose>
+        <geometry><cylinder><radius>0.08</radius><length>5.28</length></cylinder></geometry>
+      </collision>
+      <!-- 砲身が壁などに接触したかを検出する（評価の指標に使う） -->
+      <sensor name="barrel_contact" type="contact">
+        <always_on>1</always_on>
+        <update_rate>50</update_rate>
+        <contact><collision>barrel_collision</collision></contact>
+      </sensor>
+      <visual name="barrel_visual">
+        <pose>2.780 0 0.05 0 1.57080 0</pose>
+        <geometry><cylinder><radius>0.08</radius><length>5.28</length></cylinder></geometry>
+        <material><ambient>0.2 0.2 0.2 1</ambient><diffuse>0.2 0.2 0.2 1</diffuse></material>
+      </visual>
+    </link>
+    <joint name="turret_joint" type="revolute">
+      <parent>base_link</parent>
+      <child>turret</child>
+      <axis>
+        <xyz>0 0 1</xyz>
+        <limit><lower>-3.1416</lower><upper>3.1416</upper></limit>
+        <dynamics><damping>5000</damping></dynamics>
+      </axis>
+    </joint>
+
+    <plugin filename="ignition-gazebo-diff-drive-system" name="ignition::gazebo::systems::DiffDrive">
+    <left_joint>wheel_l0_joint</left_joint>
+    <left_joint>wheel_l1_joint</left_joint>
+    <left_joint>wheel_l2_joint</left_joint>
+    <left_joint>wheel_l3_joint</left_joint>
+    <left_joint>wheel_l4_joint</left_joint>
+    <left_joint>wheel_l5_joint</left_joint>
+    <left_joint>wheel_l6_joint</left_joint>
+    <left_joint>wheel_l7_joint</left_joint>
+    <right_joint>wheel_r0_joint</right_joint>
+    <right_joint>wheel_r1_joint</right_joint>
+    <right_joint>wheel_r2_joint</right_joint>
+    <right_joint>wheel_r3_joint</right_joint>
+    <right_joint>wheel_r4_joint</right_joint>
+    <right_joint>wheel_r5_joint</right_joint>
+    <right_joint>wheel_r6_joint</right_joint>
+    <right_joint>wheel_r7_joint</right_joint>
+      <wheel_separation>2.620</wheel_separation>
+      <wheel_radius>0.45</wheel_radius>
+      <topic>/cmd_vel</topic>
+      <odom_topic>/odom</odom_topic>
+      <tf_topic>/tank_tf</tf_topic>
+      <frame_id>odom</frame_id>
+      <child_frame_id>base_link</child_frame_id>
+      <odom_publish_frequency>50</odom_publish_frequency>
+      <max_linear_velocity>22.22</max_linear_velocity>
+      <min_linear_velocity>-11.11</min_linear_velocity>
+      <max_linear_acceleration>1.5</max_linear_acceleration>
+      <min_linear_acceleration>-3.5</min_linear_acceleration>
+      <max_angular_velocity>1.0</max_angular_velocity>
+      <min_angular_velocity>-1.0</min_angular_velocity>
+      <max_angular_acceleration>1.0</max_angular_acceleration>
+      <min_angular_acceleration>-1.5</min_angular_acceleration>
+    </plugin>
+    <plugin filename="ignition-gazebo-joint-position-controller-system" name="ignition::gazebo::systems::JointPositionController">
+      <joint_name>turret_joint</joint_name>
+      <topic>/tank/turret_cmd</topic>
+      <p_gain>480000</p_gain>
+      <i_gain>0</i_gain>
+      <d_gain>190000</d_gain>
+      <cmd_max>3000000</cmd_max>
+      <cmd_min>-3000000</cmd_min>
+    </plugin>
+    <plugin filename="ignition-gazebo-joint-state-publisher-system" name="ignition::gazebo::systems::JointStatePublisher">
+      <topic>/joint_states</topic>
+      <joint_name>turret_joint</joint_name>
+    </plugin>
+    <!-- 真値の位置姿勢（world 座標、z を含む 3 次元）。DiffDrive の /odom は車輪の積分で滑りを含むため別に出す -->
+    <plugin filename="ignition-gazebo-odometry-publisher-system" name="ignition::gazebo::systems::OdometryPublisher">
+      <odom_frame>world</odom_frame>
+      <robot_base_frame>base_link</robot_base_frame>
+      <odom_topic>/odom_gt</odom_topic>
+      <tf_topic>/odom_gt_tf</tf_topic>
+      <odom_publish_frequency>50</odom_publish_frequency>
+      <dimensions>3</dimensions>
+    </plugin>
+  </model>
+</sdf>

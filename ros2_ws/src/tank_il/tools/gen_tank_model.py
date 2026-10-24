@@ -67,6 +67,25 @@ BARREL_SENSOR = """      <!-- 砲身が壁などに接触したかを検出す�
       </sensor>
 """ if CONTACT_SENSORS else ""
 
+# 前方カメラ（CAMERA=1 で付ける。v2 の画像入力の試験用。既定は付けない）。解像度と周期は環境変数で変える
+CAMERA = os.environ.get("CAMERA", "0") == "1"
+CAMERA_W = int(os.environ.get("CAMERA_W", 160))
+CAMERA_H = int(os.environ.get("CAMERA_H", 120))
+CAMERA_HZ = int(os.environ.get("CAMERA_HZ", 10))
+CAMERA_SENSOR = f"""      <!-- 前方カメラ：車体の前端の上面から、やや下向きに前を見る（地形の縁や斜面を見せる） -->
+      <sensor name="front_camera" type="camera">
+        <pose>{CH_L / 2 - 0.3:.2f} 0 {CH_H / 2 + 0.15:.2f} 0 0.20 0</pose>
+        <always_on>1</always_on>
+        <update_rate>{CAMERA_HZ}</update_rate>
+        <topic>/camera/image</topic>
+        <camera>
+          <horizontal_fov>1.396</horizontal_fov>
+          <image><width>{CAMERA_W}</width><height>{CAMERA_H}</height><format>R8G8B8</format></image>
+          <clip><near>0.1</near><far>200</far></clip>
+        </camera>
+      </sensor>
+""" if CAMERA else ""
+
 # デバッグ用：車輪の関節状態も配信する（TANK_DEBUG_JOINTS=1）
 DEBUG_JOINTS = ""
 
@@ -181,7 +200,7 @@ def main():
         <geometry><box><size>{WHEEL_PITCH * (N_WHEELS - 1) + 2 * WHEEL_R + 0.05:.3f} {WHEEL_LEN + 0.02:.3f} {2 * WHEEL_R + 0.02:.3f}</size></box></geometry>
         {color(0.10, 0.10, 0.10)}
       </visual>
-{HULL_SENSOR}      <sensor name="imu_sensor" type="imu">
+{HULL_SENSOR}{CAMERA_SENSOR}      <sensor name="imu_sensor" type="imu">
         <always_on>1</always_on>
         <update_rate>50</update_rate>
         <topic>/imu</topic>

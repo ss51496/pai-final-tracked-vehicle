@@ -50,3 +50,9 @@
   ros_type: ros_gz_interfaces/msg/Contacts
   gz_type: ignition.msgs.Contacts
   direction: gz_to_ros
+
+# 前方カメラの画像（tank_v2_cam のときだけ配信される。無ければ bridge は待つだけ）
+- topic: /camera/image
+  ros_type: sensor_msgs/msg/Image
+  gz_type: ignition.msgs.Image
+  direction: gz_to_ros
