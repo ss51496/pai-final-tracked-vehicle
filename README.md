@@ -252,6 +252,16 @@ J / L = 砲塔 5°、I / O / U = 砲塔 0° / 右 90° / 左 90°、Q = 終了�
 リセットは `TANK_Z=0.98 scripts/reset_tank.sh`。加速は 1.5 m/s²（全開まで約 15 秒）、減速は 3.5 m/s² なので、早めに操作する。
 突堤は x=100 m から登る（助走 100 m）。通過の目安は x=125 m。
 
+### v2 のデモの記録（1 エピソードごと）
+
+```bash
+TANK_Z=0.98 /workspace/scripts/reset_tank.sh                 # 1. リセット
+/workspace/scripts/record_demo.sh berm 0                     # 2. 記録開始（番号は 0, 1, 2 ...）。操縦して、通過したら Ctrl+C
+```
+
+`record_demo.sh` は、`/tank/state`・`/tank/command`・`/camera/image` を `--use-sim-time` で記録する。記録の前に `/tank/state` が配信されているかを確かめ、
+止めたあとに 3 つのトピックの件数を表示する（足りなければ警告する）。記録先は `dataset/rosbags/v2_<タスク>/ep<番号>`。
+
 ### v2（44 t 級の車両）の観測と GPU 学習
 
 - シミュレーションは `extended_state:=true` を付けて起動すると、観測が 8 次元（x, z, pitch, v_forward, turret_angle, vz, roll, throttle_cmd）になる。
