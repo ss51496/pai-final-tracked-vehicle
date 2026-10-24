@@ -100,12 +100,14 @@ def main():
         robot_type=feat.robot_type, features=feat.features, use_videos=False)
 
     for i, ep in enumerate(episodes):
-        s_t, s_v = read_topic(ep, cfg["state_topic"], state_dim)
+        s_t, s_v = read_topic(ep, cfg["state_topic"], int(cfg.get("state_topic_dim", state_dim)))
         a_t, a_v = read_topic(ep, cfg["action_topic"], action_dim)
         start, end = max(s_t[0], a_t[0]), min(s_t[-1], a_t[-1])
         n = int((end - start) * 1e-9 * fps) + 1
         target = start + (np.arange(n) / fps * 1e9).astype(np.int64)
         state = sample_and_hold(s_t, s_v, target)
+        if hasattr(feat, "STATE_DIMS"):           # 記録した次元のうち、学習に使うものだけを取り出す（v2）
+            state = np.ascontiguousarray(state[:, feat.STATE_DIMS])
         action = sample_and_hold(a_t, a_v, target)
 
         n_raw = n

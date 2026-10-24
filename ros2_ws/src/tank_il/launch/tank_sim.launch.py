@@ -50,7 +50,7 @@ def build(context):
     driver = Node(package='tank_il', executable='tank_driver', output='screen',
                   parameters=[sim_time, {'v_max': float(lc['v_max']), 'omega_max': float(lc['omega_max'])}])
     state = Node(package='tank_il', executable='state_publisher', output='screen',
-                 parameters=[sim_time])
+                 parameters=[sim_time, {'extended': lc['extended_state'].lower() == 'true'}])
     actions = [gazebo, bridge, driver, state]
 
     video = context.launch_configurations['video'].lower() == 'true'
@@ -81,5 +81,7 @@ def generate_launch_description():
         # tank_driver の上限。v2（80 km/h 級）は v_max:=22.22 omega_max:=1.0
         DeclareLaunchArgument('v_max', default_value='4.0'),
         DeclareLaunchArgument('omega_max', default_value='1.5'),
+        # v2 は extended_state:=true で観測を 8 次元（vz・roll・throttle_cmd を追加）にする
+        DeclareLaunchArgument('extended_state', default_value='false'),
         OpaqueFunction(function=build),
     ])

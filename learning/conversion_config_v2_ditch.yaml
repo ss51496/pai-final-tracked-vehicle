@@ -1,0 +1,11 @@
+# v2 の ditch の rosbag2 → LeRobotDataset の変換設定。
+# TANK_TASK=ditch（必要なら TANK_STATE_CMD=0）を付けて実行する。デモは --use-sim-time で記録するので fps は 10
+bag_dir: "/workspace/dataset/rosbags/v2_ditch"
+output_dir: "/workspace/dataset/lerobot_dataset/tank_v2_ditch"
+features_file: "/workspace/learning/tank_features_v2.py"
+fps: 10
+state_topic: "/tank/state"                          # Float32MultiArray（8 次元。launch の extended_state:=true）
+state_topic_dim: 8
+action_topic: "/tank/command"
+trim_idle: true
+trim_tail_sec: 1.0

@@ -223,3 +223,11 @@ ros2 run tank_il evaluate_ditch --mode replay --bag-dir /workspace/dataset/rosba
 ## ライセンス
 
 MIT（`LICENSE`）。
+
+### v2（44 t 級の車両）の観測と GPU 学習
+
+- シミュレーションは `extended_state:=true` を付けて起動すると、観測が 8 次元（x, z, pitch, v_forward, turret_angle, vz, roll, throttle_cmd）になる。
+- 学習は GPU 用のコンテナ（同じイメージを `--gpus all` で起動し、`/workspace` を同じ場所にマウントしたもの）で行う。
+  `docker run -d --name pai_train --gpus all -v "$(pwd)":/workspace --entrypoint sleep airobotbook/ros2-desktop-ai-robot-book-humble:latest infinity`
+  pixi は、学習用コンテナの `/home/ubuntu/.pixi` に pai_ros2 から複製する。使う GPU は 1 枚（`CUDA_VISIBLE_DEVICES=0`）。
+- 変換と学習は `learning/convert.sh v2_berm`、`learning/train.sh v2_berm`（壕は `v2_ditch`）。`TANK_STATE_CMD=0` で throttle_cmd を除く。

@@ -22,7 +22,7 @@ STATE_TIMEOUT = 1.0   # この秒数 /tank/state が来なければ配信を止�
 
 
 class PolicyNode(Node):
-    def __init__(self, model_path, device, n_action_steps=None, wait_reset=False, rate=PUBLISH_HZ, sim_time=True):
+    def __init__(self, model_path, device, n_action_steps=None, wait_reset=False, rate=PUBLISH_HZ, sim_time=True, state_dims=None):
         # sim_time=True なら、制御周期とタイムアウトをシミュレーション時刻で測る（RTF の揺れの影響を受けない）
         overrides = [Parameter('use_sim_time', Parameter.Type.BOOL, True)] if sim_time else []
         super().__init__('policy_node', parameter_overrides=overrides)
@@ -40,6 +40,7 @@ class PolicyNode(Node):
         self.policy.reset()
 
         self.state = None
+        self.state_dims = state_dims   # /tank/state のうちモデルに入れる添字（v2 で throttle_cmd を除くときなど）
         self.last_rx = None
         self.create_subscription(Float32MultiArray, '/tank/state', self.on_state, 10)
         # 評価で車両をリセットするたびに、行動チャンクのキューを空にする
@@ -58,6 +59,8 @@ class PolicyNode(Node):
 
     def on_state(self, msg):
         self.state = np.asarray(msg.data, dtype=np.float32)
+        if self.state_dims is not None:
+            self.state = self.state[self.state_dims]
         self.last_rx = self.get_clock().now()
 
     def step(self):
@@ -65,7 +68,7 @@ class PolicyNode(Node):
             return
         if (self.get_clock().now() - self.last_rx).nanoseconds * 1e-9 > STATE_TIMEOUT:
             return
-        s = self.torch.from_numpy(self.state).unsqueeze(0).to(self.device)   # (1, 5)
+        s = self.torch.from_numpy(self.state).unsqueeze(0).to(self.device)   # (1, 状態の次元)
         obs = {'observation.state': s, 'observation.environment_state': s}
         with self.torch.no_grad():
             action = self.policy.select_action(obs).cpu().numpy().flatten()   # (3,)
@@ -88,9 +91,11 @@ def main():
     ap.add_argument('--wait-reset', action='store_true', help='/tank/policy_reset を受けるまで指令を出さない')
     ap.add_argument('--n-action-steps', type=int, default=8,
                     help='1 回の推論で得た行動チャンクを何ステップ続けて実行するか（0 なら学習時の設定のまま）。突堤では 8 が最良')
+    ap.add_argument('--state-dims', default='', help="モデルに入れる /tank/state の添字（例 '0,1,2,3,4,5,6'）。省略時は全部")
     args, ros_args = ap.parse_known_args()
     rclpy.init(args=ros_args)
-    node = PolicyNode(args.model_path, args.device, args.n_action_steps, args.wait_reset, args.rate, not args.wall_time)
+    node = PolicyNode(args.model_path, args.device, args.n_action_steps, args.wait_reset, args.rate, not args.wall_time,
+                      [int(i) for i in args.state_dims.split(',')] if args.state_dims else None)
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:

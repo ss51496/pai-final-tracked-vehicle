@@ -319,3 +319,9 @@
 - evaluate_berm / evaluate_ditch に --goal-x, --split-x, --timeout, --impact-thr を追加（既定は v1 の値）。v2 では衝撃 3.0 m/s 未満を「飛ばずに通過」とする（落下高さ 0.46 m 相当）。
 - 動作確認（壕、スロットル 0.3）：砲塔 0° は砲身が接触（接触せずに通過 0/2）、90° は接触なし（2/2）。ただしこの速度でも衝撃は 3.2〜4.7 m/s で、「飛ばずに」には 0.3 より遅い進入が要る。
 - 失敗の記録：reset_tank.sh の実行権限が外れてコミットされ、評価が止まった（chmod +x で修復）。
+
+## v2：観測の拡張と GPU 学習（2026-10-24）
+- 観測を 5 → 8 次元にした（launch の `extended_state:=true`）：末尾に vz（鉛直速度）、roll、throttle_cmd（直前のスロットル指令）を追加。vz は /odom_gt の twist が世界座標の鉛直速度と合わなかったため、z を 0.1 秒間隔で差分して求める。
+- 設計上の注意：throttle_cmd は行動の写しなので、方策が「前回の指令をそのまま出す」近道を覚えるおそれがある。特徴量定義で `TANK_STATE_CMD=0` にすると 7 次元（throttle_cmd なし）で学習でき、比較実験できるようにした。
+- GPU：ホストの GPU は RTX 4060 と RTX 5060 Ti。pai_training の PyTorch（2.7.0+cu126）は 5060 Ti（sm_120）に未対応のため、4060 だけを使う（CUDA_VISIBLE_DEVICES=0）。GPU を渡すには `--gpus all` で作る必要があり、既存の pai_ros2 には付けられないため、学習用に別のコンテナ pai_train を作った（同じイメージ、同じ /workspace）。
+- 通し試験：記録 → 変換 → GPU 学習（200 ステップ、約 14 秒）が通った。変換後の値は妥当（vz ±2.5 m/s、roll ±0.02 rad、throttle_cmd 0.3）。
