@@ -3,6 +3,8 @@
 # 使い方: scripts/reset_tank.sh [x y z yaw_rad]    省略時は 0 0 0.35 0
 # world 名は course、モデル名は tank（ign service -s /world/course/set_pose）。
 # ホスト（WSL）からでも、コンテナ内からでも実行できる。
+TURRET_DEG=${TURRET_DEG:-0}      # 砲塔の初期角度 [deg]（既定 0。壕のデモを砲塔 90° から始めるときは TURRET_DEG=90）
+TURRET_RAD=$(python3 -c "import math; print(math.radians($TURRET_DEG))")
 X=${1:-0}; Y=${2:-0}; Z=${3:-${TANK_Z:-0.35}}; YAW=${4:-0}   # v2 の車両は TANK_Z=0.98
 QW=$(python3 -c "import math; print(math.cos($YAW/2))")
 QZ=$(python3 -c "import math; print(math.sin($YAW/2))")
@@ -27,7 +29,7 @@ run() {
 #    （これを入れ忘れて、評価のリセットが 21 分間固まった）。
 run "timeout 5 ros2 topic pub -w 0 --times 5 --rate 20 /cmd_vel geometry_msgs/msg/Twist '{}' > /dev/null; \
      timeout 6 ros2 topic pub -w 0 --times 15 --rate 5 /tank/teleop_reset std_msgs/msg/Empty '{}' > /dev/null; \
-     timeout 5 ros2 topic pub -w 0 --times 20 --rate 20 /tank/turret_cmd std_msgs/msg/Float64 '{data: 0.0}' > /dev/null"
+     timeout 5 ros2 topic pub -w 0 --times 20 --rate 20 /tank/turret_cmd std_msgs/msg/Float64 '{data: $TURRET_RAD}' > /dev/null"
 # 2) 位置姿勢を戻す
 run "ign service -s /world/course/set_pose --reqtype ignition.msgs.Pose --reptype ignition.msgs.Boolean \
      --timeout 3000 --req 'name: \"tank\", position: {x: $X, y: $Y, z: $Z}, orientation: {x: 0, y: 0, z: $QZ, w: $QW}'"
@@ -36,7 +38,7 @@ TURRET_OK=0
 PARSE='import re,sys; t=sys.stdin.read(); v=re.findall(r"-?[0-9.]+(?:e-?[0-9]+)?", t.split("[",1)[1]) if "[" in t else []; print(v[4] if len(v)>=5 else "")'
 for i in $(seq 1 16); do
   ang=$(run "timeout 3 ros2 topic echo --once /tank/state --field data 2>/dev/null" | python3 -c "$PARSE")
-  if [ -n "$ang" ] && python3 -c "import sys; sys.exit(0 if abs(float('$ang')) < 0.03 else 1)"; then TURRET_OK=1; break; fi
+  if [ -n "$ang" ] && python3 -c "import sys; sys.exit(0 if abs(float('$ang') - $TURRET_RAD) < 0.03 else 1)"; then TURRET_OK=1; break; fi
   sleep 0.5
 done
 sleep 1.0

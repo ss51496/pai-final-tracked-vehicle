@@ -109,6 +109,10 @@ def main():
         if hasattr(feat, "STATE_DIMS"):           # 記録した次元のうち、学習に使うものだけを取り出す（v2）
             state = np.ascontiguousarray(state[:, feat.STATE_DIMS])
         action = sample_and_hold(a_t, a_v, target)
+        if "fix_turret_deg" in cfg:               # 砲塔を一定の角度にそろえる（観測の砲塔角 [4]、行動の砲塔角 [2] の両方）
+            rad = np.radians(float(cfg["fix_turret_deg"]))
+            state[:, 4] = rad
+            action[:, 2] = rad
 
         n_raw = n
         if cfg.get("trim_idle", False):
