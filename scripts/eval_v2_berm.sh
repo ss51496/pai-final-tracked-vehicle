@@ -7,7 +7,7 @@
 export PAI_ISOLATED=1 TANK_Z=0.98
 cd "$(dirname "$0")/.."
 conds=${@:-const1.0 const0.5 const0.25 const0.15 cmd_n8 nocmd_n8}
-EVAL="--goal-x 125 --timeout 60 --impact-thr 3.0 --trials 10"
+EVAL="--goal-x 125 --timeout 60 --impact-thr 3.0 --trials ${TRIALS:-10}"
 for c in $conds; do
   scripts/kill_sim.sh > /dev/null; scripts/test_sim.sh berm_v2_cam "v_max:=22.22 omega_max:=1.0 extended_state:=true" > /dev/null; sleep 10
   case $c in
