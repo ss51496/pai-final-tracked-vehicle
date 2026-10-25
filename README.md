@@ -262,6 +262,27 @@ TANK_Z=0.98 /workspace/scripts/reset_tank.sh                 # 1. リセット
 `record_demo.sh` は、`/tank/state`・`/tank/command`・`/camera/image` を `--use-sim-time` で記録する。記録の前に `/tank/state` が配信されているかを確かめ、
 止めたあとに 3 つのトピックの件数を表示する（足りなければ警告する）。記録先は `dataset/rosbags/v2_<タスク>/ep<番号>`。
 
+### v2 の壕のテレオペと記録
+
+```bash
+# ターミナル 1：壕（画像つきの車両）。壕は x=100〜111 m
+source /opt/ros/humble/setup.bash && source /workspace/ros2_ws/install/setup.bash
+ros2 launch tank_il tank_sim.launch.py world:=ditch_v2_cam v_max:=22.22 omega_max:=1.0 extended_state:=true camera_xyz:="105.5 -32.0 5.0"
+```
+
+テレオペ（`ros2 run tank_il teleop_tank`）は突堤と同じ。ターミナル 3 は、壕用のパラメータで `hop_monitor` を起動する。
+
+```bash
+source /opt/ros/humble/setup.bash && source /workspace/ros2_ws/install/setup.bash
+ros2 run tank_il hop_monitor --ros-args -p goal_x:=135.0 -p split_x:=105.5 -p impact_thr:=3.0
+```
+
+記録は `scripts/record_demo.sh ditch <番号>`（記録先 `dataset/rosbags/v2_ditch/ep<番号>`）。通過の目安は x=135 m。
+壕に入るときと出るときの着地衝撃が、ともに 3.0 m/s 未満になるよう操縦する。砲塔は壕の手前で 90° にする（0° のまま進入すると砲身が壁に当たる）。
+
+目安（砲塔 90°、一定スロットルで壕を通したとき）：スロットル 0.10〜0.15（約 8〜12 km/h）は衝撃 1.2〜1.9 m/s（OK）、0.2 以上は 3 m/s を超えて飛ぶ（0.5 で 4〜7 m/s）。
+壕の手前では、約 12 km/h まで落とす必要がある。減速は 3.5 m/s²（50 km/h から 12 km/h に落とすのに約 26 m）なので、壕の 30 m 以上手前から減速する。
+
 ### v2（44 t 級の車両）の観測と GPU 学習
 
 - シミュレーションは `extended_state:=true` を付けて起動すると、観測が 8 次元（x, z, pitch, v_forward, turret_angle, vz, roll, throttle_cmd）になる。
