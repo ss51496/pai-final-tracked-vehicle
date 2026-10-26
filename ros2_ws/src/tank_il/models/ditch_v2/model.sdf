@@ -3,7 +3,7 @@
 <sdf version="1.8">
   <model name="ditch_v2">
     <static>true</static>
-    <pose>0 12.0 0 1.57080 0 0</pose>
+    <pose>0 28.0 0 1.57080 0 0</pose>
     <link name="link">
       <collision name="collision">
         <geometry>
@@ -18,7 +18,7 @@
           <point>111.0000 0.0000</point>
           <point>260.0000 0.0000</point>
           <point>260.0000 -2.5000</point>
-          <height>24.0</height>
+          <height>56.0</height>
         </polyline>
         </geometry>
         <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface>
@@ -36,7 +36,7 @@
           <point>111.0000 0.0000</point>
           <point>260.0000 0.0000</point>
           <point>260.0000 -2.5000</point>
-          <height>24.0</height>
+          <height>56.0</height>
         </polyline>
         </geometry>
         <material>

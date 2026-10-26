@@ -24,7 +24,7 @@ CHAMFER_DEG = 17.0   # 根元の面取りの角度 [deg]
 CHAMFER_LEN = _p("BERM_CHAMFER", 0.30, 0.8)   # 根元の面取りの水平長 [m]
 CREST_LEN = _p("BERM_CREST_LEN", 0.0, 3.0)   # 頂上の縁の面取り（水平長 [m]）。長い車体が縁で前のめりに落ちるのを和らげる
 CREST_DEG = 10.0     # 頂上の縁の面取りの角度 [deg]
-WIDTH = _p("TERRAIN_WIDTH", 12.0, 24.0)         # 山の幅（y 方向）[m]
+WIDTH = _p("TERRAIN_WIDTH", 12.0, 56.0)         # 山の幅（y 方向）[m]
 X_MIN, X_MAX, Z_BOTTOM = -20.0, _p("TERRAIN_X_MAX", 40.0, 260.0), -1.0
 MU = 1.0
 
