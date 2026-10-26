@@ -13,7 +13,8 @@ USE_CMD = os.environ.get("TANK_STATE_CMD", "1") == "1"
 
 ALL_STATE_NAMES = ["x", "z", "pitch", "v_forward", "turret_angle", "vz", "roll", "throttle_cmd"]
 STATE_DIMS = list(range(8)) if USE_CMD else list(range(7))     # 記録した 8 次元のうち学習に使う添字
-if TASK.endswith("_t90"):
+IMG = TASK.endswith("_img")      # 前方カメラの画像を入力に加える（TANK_TASK=ditch_t90_img など）
+if "_t90" in TASK:
     # 砲塔を一定（90°）にそろえた学習では、観測から砲塔角を外す。一定値の次元は標準偏差が 0 になり、正規化で
     # 実際の角度のわずかなずれ（走行中は 91°）が極端な入力になって、方策が壊れた
     STATE_DIMS.remove(4)
@@ -27,6 +28,9 @@ features = {
     "observation.environment_state": {"dtype": "float32", "shape": (n,), "names": STATE_NAMES},
     "action": {"dtype": "float32", "shape": (3,), "names": ACTION_NAMES},
 }
+if IMG:
+    # 前方カメラ（160×120、rgb8）。ACT は画像を ResNet で特徴量にして使う
+    features["observation.images.front"] = {"dtype": "image", "shape": (120, 160, 3), "names": ["height", "width", "channel"]}
 
 robot_type = "tracked_vehicle_v2"
 suffix = "" if USE_CMD else "_nocmd"

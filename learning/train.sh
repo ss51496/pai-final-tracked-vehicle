@@ -11,9 +11,10 @@ task=${1:?"使い方: learning/train.sh <berm|ditch>"}
 case $task in berm) cfg=train_config.yaml;; ditch) cfg=train_config_ditch.yaml;;
   v2_berm) cfg=train_config_v2_berm.yaml; export TANK_TASK=berm;; v2_ditch) cfg=train_config_v2_ditch.yaml; export TANK_TASK=ditch;;
   v2_ditch_t90) cfg=train_config_v2_ditch_t90.yaml; export TANK_TASK=ditch_t90;;
-  *) echo "タスクは berm, ditch, v2_berm, v2_ditch, v2_ditch_t90"; exit 1;; esac
+  v2_ditch_t90_img) cfg=train_config_v2_ditch_t90_img.yaml; export TANK_TASK=ditch_t90_img;;
+  *) echo "タスクは berm, ditch, v2_berm, v2_ditch, v2_ditch_t90, v2_ditch_t90_img"; exit 1;; esac
 if [ "${TANK_STATE_CMD:-1}" = "0" ] && [[ $task == v2_* ]]; then   # throttle_cmd を除く比較実験：データセットと出力の名前に _nocmd を付ける
-  sed -E 's/tank_v2_(berm|ditch(_t90)?)/&_nocmd/g' /workspace/learning/$cfg > /workspace/learning/.generated_$cfg
+  sed -E 's/tank_v2_(berm|ditch(_t90)?(_img)?)/&_nocmd/g' /workspace/learning/$cfg > /workspace/learning/.generated_$cfg
   cfg=.generated_$cfg
 fi
 if [ -n "$TRAIN_STEPS" ]; then   # 学習ステップ数を変える（出力先の名前に _s<ステップ数> を付けて、既存のモデルを残す）

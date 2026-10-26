@@ -32,6 +32,9 @@ from rosbags.rosbag2 import Reader
 from rosbags.serde import deserialize_cdr
 
 
+IMG_KEY = "observation.images.front"
+
+
 def load_module(path):
     spec = importlib.util.spec_from_file_location("tank_features", path)
     mod = importlib.util.module_from_spec(spec)
@@ -54,6 +57,22 @@ def read_topic(episode_dir, topic, dim):
             times.append(t)
             values.append(data)
     return np.asarray(times, dtype=np.int64), np.stack(values)
+
+
+def read_images(episode_dir, topic):
+    """画像トピックの (時刻 [ns], 画像のリスト（高さ×幅×3 の uint8、rgb8））を返す"""
+    times, imgs = [], []
+    with Reader(episode_dir) as reader:
+        conns = [c for c in reader.connections if c.topic == topic]
+        if not conns:
+            raise RuntimeError(f"{episode_dir} に {topic} がありません")
+        for conn, t, raw in reader.messages(connections=conns):
+            msg = deserialize_cdr(raw, conn.msgtype)
+            if msg.encoding != "rgb8":
+                raise RuntimeError(f"{topic} のエンコーディングが {msg.encoding}（期待は rgb8）")
+            imgs.append(np.asarray(msg.data, dtype=np.uint8).reshape(msg.height, msg.width, 3).copy())
+            times.append(t)
+    return np.asarray(times, dtype=np.int64), imgs
 
 
 def sample_and_hold(times, values, target_times):
@@ -115,18 +134,28 @@ def main():
         if hasattr(feat, "STATE_DIMS"):           # 記録した次元のうち、学習に使うものだけを取り出す（v2）
             state = np.ascontiguousarray(state[:, feat.STATE_DIMS])
 
+        img_idx = None
+        if IMG_KEY in feat.features:              # 画像つきのデータセット：各フレームに、直前の画像を対応させる
+            i_t, imgs = read_images(ep, cfg.get("image_topic", "/camera/image"))
+            img_idx = np.clip(np.searchsorted(i_t, target, side="right") - 1, 0, len(imgs) - 1)
+
         n_raw = n
         if cfg.get("trim_idle", False):
             lo, hi = trim_idle(action, fps, float(cfg.get("trim_tail_sec", 1.0)))
             state, action = state[lo:hi + 1], action[lo:hi + 1]
+            if img_idx is not None:
+                img_idx = img_idx[lo:hi + 1]
             n = len(action)
         for k in range(n):
-            dataset.add_frame({
+            frame = {
                 "observation.state": torch.from_numpy(state[k]),
                 "observation.environment_state": torch.from_numpy(state[k]),
                 "action": torch.from_numpy(action[k]),
                 "task": feat.task_name,
-            })
+            }
+            if img_idx is not None:
+                frame[IMG_KEY] = imgs[img_idx[k]]
+            dataset.add_frame(frame)
         dataset.save_episode()
         # 変換の健全性を確認するための要約（ピッチとスロットルの対応が見えるはず）
         print(f"[ep{i}] {ep.name}: {n} フレーム ({n / fps:.1f}s、切り詰め前 {n_raw})  "
