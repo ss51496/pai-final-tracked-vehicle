@@ -106,13 +106,14 @@ def main():
         n = int((end - start) * 1e-9 * fps) + 1
         target = start + (np.arange(n) / fps * 1e9).astype(np.int64)
         state = sample_and_hold(s_t, s_v, target)
-        if hasattr(feat, "STATE_DIMS"):           # 記録した次元のうち、学習に使うものだけを取り出す（v2）
-            state = np.ascontiguousarray(state[:, feat.STATE_DIMS])
         action = sample_and_hold(a_t, a_v, target)
         if "fix_turret_deg" in cfg:               # 砲塔を一定の角度にそろえる（観測の砲塔角 [4]、行動の砲塔角 [2] の両方）
             rad = np.radians(float(cfg["fix_turret_deg"]))
             state[:, 4] = rad
             action[:, 2] = rad
+        # 次元の選択は、砲塔角の書き換え（記録した 8 次元の添字で指定）のあとに行う。順序を逆にすると、別の次元を書き換えてしまう
+        if hasattr(feat, "STATE_DIMS"):           # 記録した次元のうち、学習に使うものだけを取り出す（v2）
+            state = np.ascontiguousarray(state[:, feat.STATE_DIMS])
 
         n_raw = n
         if cfg.get("trim_idle", False):

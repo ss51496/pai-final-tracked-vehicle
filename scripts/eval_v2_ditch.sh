@@ -28,7 +28,7 @@ for c in $conds; do
       n=${c##*_n}; dims=""; model=/workspace/checkpoints/train/tank_v2_ditch_act; turret=0
       if [[ $c == nocmd* ]]; then dims="--state-dims 0,1,2,3,4,5,6"; model=/workspace/checkpoints/train/tank_v2_ditch_nocmd_act; fi
       # t90nocmd：砲塔を最初から 90° にして始め、砲塔の操作を学習しない方策（learning/train.sh v2_ditch_t90）
-      if [[ $c == t90nocmd* ]]; then dims="--state-dims 0,1,2,3,4,5,6"; model=/workspace/checkpoints/train/tank_v2_ditch_t90_nocmd${MODEL_TAG:-}_act; turret=90; fi
+      if [[ $c == t90nocmd* ]]; then dims="--state-dims 0,1,2,3,5,6"; model=/workspace/checkpoints/train/tank_v2_ditch_t90_nocmd${MODEL_TAG:-}_act; turret=90; fi
       echo "##### policy $c"
       docker exec -d -u ubuntu -w /workspace/pai_training pai_ros2 bash -lc "export ROS_DOMAIN_ID=77 IGN_PARTITION=pai_test PATH=\$HOME/.pixi/bin:\$PATH; source /opt/ros/humble/setup.bash; source /workspace/ros2_ws/install/setup.bash; pixi run python /workspace/ros2_ws/src/tank_il/tank_il/policy_node.py --model-path $model --n-action-steps $n --rate 10 $dims > /workspace/logs/policy.log 2>&1"
       sleep 20

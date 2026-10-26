@@ -13,6 +13,10 @@ USE_CMD = os.environ.get("TANK_STATE_CMD", "1") == "1"
 
 ALL_STATE_NAMES = ["x", "z", "pitch", "v_forward", "turret_angle", "vz", "roll", "throttle_cmd"]
 STATE_DIMS = list(range(8)) if USE_CMD else list(range(7))     # 記録した 8 次元のうち学習に使う添字
+if TASK.endswith("_t90"):
+    # 砲塔を一定（90°）にそろえた学習では、観測から砲塔角を外す。一定値の次元は標準偏差が 0 になり、正規化で
+    # 実際の角度のわずかなずれ（走行中は 91°）が極端な入力になって、方策が壊れた
+    STATE_DIMS.remove(4)
 STATE_NAMES = [ALL_STATE_NAMES[i] for i in STATE_DIMS]
 ACTION_NAMES = ["throttle", "steering", "turret_angle"]
 n = len(STATE_NAMES)
