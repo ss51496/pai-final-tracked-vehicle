@@ -39,8 +39,8 @@ for i, f in enumerate(files):
     ax[0, 2].plot(s[:, 0], s[:, 1], color=c)                      # 高さ vs x
     ax[1, 0].plot(s[:, 0], s[:, 5], color=c)                      # 鉛直速度 vs x
     ax[1, 1].plot(s[:, 0], np.degrees(s[:, 2]), color=c)          # ピッチ vs x
-    ax[1, 2].plot(np.arange(len(d)) / 10, np.degrees(a[:, 2]), color=c)   # 砲塔角の指令 vs 時間
-titles = ["throttle vs x", "speed [km/h] vs x", "z [m] vs x", "vz [m/s] vs x", "pitch [deg] vs x", "turret command [deg] vs time [s]"]
+    ax[1, 2].plot(np.arange(len(d)) / 10, a[:, 0], color=c)               # スロットル vs 時間
+titles = ["throttle vs x", "speed [km/h] vs x", "z [m] vs x", "vz [m/s] vs x", "pitch [deg] vs x", "throttle vs time [s]"]
 for a_, t_ in zip(ax.flat, titles):
     a_.set_title(t_)
     a_.grid(alpha=0.3)
@@ -59,6 +59,5 @@ for i, f in enumerate(files):
     vz = s[:, 5]
     dv = float(np.max(vz[1:] - vz[:-1])) if len(vz) > 1 else 0.0   # 0.1 秒刻みの変化
     enter = s[np.argmax(s[:, 0] >= BERM[0]), 3] * 3.6 if (s[:, 0] >= BERM[0]).any() else float("nan")
-    tur = np.degrees(a[:, 2]); t90 = np.argmax(np.abs(tur) > 45) / 10 if (np.abs(tur) > 45).any() else float("nan")
-    print(f"ep{i}: 砲塔90°の指令 t={t90:.1f}s x={s[min(int(t90*10), len(s)-1), 0]:.0f} m | {len(d)}フレーム {len(d)/10:.1f}s | 最高 {s[:,3].max()*3.6:.0f} km/h  山で最低 {s[on,3].min()*3.6 if on.any() else float('nan'):.0f} km/h  "
+    print(f"ep{i}: {len(d)}フレーム {len(d)/10:.1f}s | 最高 {s[:,3].max()*3.6:.0f} km/h  山で最低 {s[on,3].min()*3.6 if on.any() else float('nan'):.0f} km/h  "
           f"進入 {enter:.0f} km/h | 衝撃 {dv:.1f} m/s | 最終x={s[-1,0]:.1f}")

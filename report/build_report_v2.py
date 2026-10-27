@@ -42,23 +42,19 @@ def berm_table():
 
 def ditch_table():
     spec = [("人のデモ 10 本の再生", "v2_ditch_human_replay2", "human"),
-            ("ルール：砲塔 0°（前向き）・一定 0.15", "v2_ditch_front015", "bad"),
-            ("ルール：砲塔 90°・一定 0.15", "v2_ditch_const015", ""),
-            ("ルール：砲塔 90°・全開のまま", "v2_ditch_full", "bad"),
-            ("ルール：砲塔 90°・x=70 m から 0.15、x=112 m から全開", "v2_ditch_slowzone", ""),
-            ("ACT：砲塔の操作も学習（旧デモ、throttle_cmd なし）", "v2_ditch_policy_nocmd_n8", "bad"),
-            ("ACT：砲塔の操作も学習（旧デモ、throttle_cmd あり）", "v2_ditch_policy_cmd_n8", "bad"),
-            ("<b>ACT：砲塔 90° 固定・数値のみ（撮り直したデモ）</b>", "v2_ditch_policy_t90nocmd_n8_new", "best"),
-            ("ACT：砲塔 90° 固定・数値＋画像（撮り直したデモ、1 回目）", "v2_ditch_policy_t90imgnocmd_n8_new", ""),
-            ("ACT：砲塔 90° 固定・数値＋画像（撮り直したデモ、2 回目）", "v2_ditch_policy_t90imgnocmd_n8_new2", "")]
-    out = ['<table><tr><th class="l">方式</th><th>通過</th><th>接触なし</th><th>飛ばずに通過</th><th>着地衝撃 入る／出る</th><th>所要時間</th></tr>']
+            ("一定スロットル 0.15", "v2_ditch_const015", ""),
+            ("全開のまま", "v2_ditch_full", "bad"),
+            ("ルール：x=70 m から 0.15、x=112 m から全開", "v2_ditch_slowzone", ""),
+            ("<b>ACT（観測：数値のみ）</b>", "v2_ditch_policy_t90nocmd_n8_new", "best"),
+            ("ACT（観測：数値＋画像）1 回目", "v2_ditch_policy_t90imgnocmd_n8_new", ""),
+            ("ACT（観測：数値＋画像）2 回目", "v2_ditch_policy_t90imgnocmd_n8_new2", "")]
+    out = ['<table><tr><th class="l">方式</th><th>通過</th><th>飛ばずに通過</th><th>着地衝撃 入る／出る</th><th>所要時間</th></tr>']
     for label, f, cls in spec:
         d = load(f)
         ok = [r for r in d if r["outcome"] == "passed"]
-        nc = sum(r["no_contact_pass"] == "True" for r in d)
-        nh = sum(r["no_hop_pass"] == "True" for r in d)
+        nh = sum(1 for r in ok if float(r["impact_in"]) < 3.0 and float(r["impact_out"]) < 3.0)   # 入るときも出るときも 3.0 m/s 未満
         cells = (f'{m(ok, "impact_in"):.2f}／{m(ok, "impact_out"):.2f} m/s', f'{m(ok, "time_sec"):.1f} s') if ok else ("―", "―")
-        out.append(f'<tr class="{cls}"><td class="l">{label}</td><td>{len(ok)}/{len(d)}</td><td>{nc}/{len(d)}</td><td>{nh}/{len(d)}</td>'
+        out.append(f'<tr class="{cls}"><td class="l">{label}</td><td>{len(ok)}/{len(d)}</td><td>{nh}/{len(d)}</td>'
                    + "".join(f"<td>{c}</td>" for c in cells) + "</tr>")
     out.append("</table>")
     return "\n".join(out)

@@ -18,6 +18,7 @@ print(f"{max(0, ts - 1.0):.2f} {te + 1.5:.2f}")
 PY
 }
 one() {
+  [ -n "$ONLY" ] && [[ " $ONLY " != *" $1 "* ]] && return 0   # ONLY="v2_ditch_human" のように指定すると、その場面だけ処理する
   read ss to < <(cut_one "$1" "$2" "$3")
   echo "$1: $ss〜$to s"
   box="drawbox=y=ih-70:w=iw:h=70:color=black@0.55:t=fill"
